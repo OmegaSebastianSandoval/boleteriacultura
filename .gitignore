@@ -1,0 +1,17 @@
+node_modules/
+framework/Payment
+app/config/config.php
+vendor/
+public_html/
+test.yaml
+.agents
+public_html
+bower_components
+bower.json
+composer-setup.php
+composer.bat
+composer.json
+Gruntfile.js
+package.json
+package-lock.json
+skills-lock.json
