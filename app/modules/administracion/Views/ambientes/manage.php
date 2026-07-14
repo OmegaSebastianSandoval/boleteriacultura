@@ -821,7 +821,7 @@ if ($this->mesas) {
 			<div class="modal-mesa-body">
 				<div class="form-group">
 					<label>Tipo</label>
-					<select id="input_tipo" class="form-control" onchange="actualizarCapacidadDefault(); actualizarVisibilidadPrecioSilla();">
+					<select id="input_tipo" class="form-control" onchange="actualizarDimensionesPorTipo(); actualizarCapacidadDefault(); actualizarVisibilidadPrecioSilla();">
 						<option value="mesa">Mesa</option>
 						<option value="silla">Silla</option>
 						<option value="puerta">Puerta</option>
@@ -1679,6 +1679,15 @@ if ($this->mesas) {
 	// 	const options = [1, 2, 4, 6, 8, 10];
 	// 	return options.reduce((prev, curr) => Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev);
 	// }
+
+	// Al crear un elemento nuevo, silla usa 1x1 por defecto; el resto de tipos usa 2x2.
+	function actualizarDimensionesPorTipo() {
+		if (modalMesaModo !== 'crear') return;
+		const tipo = document.getElementById('input_tipo').value;
+		const size = tipo === 'silla' ? 1 : 2;
+		document.getElementById('input_ancho').value = size;
+		document.getElementById('input_alto').value = size;
+	}
 
 	function actualizarCapacidadDefault() {
 		const tipo = document.getElementById('input_tipo').value;
