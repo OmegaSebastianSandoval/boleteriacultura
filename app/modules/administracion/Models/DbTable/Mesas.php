@@ -403,7 +403,7 @@ class Administracion_Model_DbTable_Mesas extends Db_Table
         FROM mesas m
         INNER JOIN ambientes a ON m.mesa_ambiente = a.ambiente_id
         INNER JOIN pisos p ON a.ambiente_piso = p.piso_id
-        WHERE m.mesa_ambiente = '$ambienteId' AND (m.mesa_capacidad != '$capacidad' OR m.mesa_tipo != 'mesa')
+        WHERE m.mesa_ambiente = '$ambienteId' AND (m.mesa_capacidad != '$capacidad' OR m.mesa_tipo != 'mesa') AND m.mesa_activa = '1'
         ORDER BY m.mesa_nombre ASC
     ";
 
@@ -548,7 +548,7 @@ class Administracion_Model_DbTable_Mesas extends Db_Table
         FROM mesas m
         INNER JOIN ambientes a ON m.mesa_ambiente = a.ambiente_id
         INNER JOIN pisos p ON a.ambiente_piso = p.piso_id
-        WHERE m.mesa_ambiente = '$ambienteId' AND m.mesa_tipo != 'silla'
+        WHERE m.mesa_ambiente = '$ambienteId' AND m.mesa_tipo != 'silla' AND m.mesa_activa = '1'
         ORDER BY m.mesa_nombre ASC
     ";
 

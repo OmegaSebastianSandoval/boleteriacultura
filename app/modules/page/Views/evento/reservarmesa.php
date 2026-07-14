@@ -1854,6 +1854,7 @@
   .libre { background-color: #4CAF50; cursor: pointer; }
   .mesanoseleccionable { background-color: #bbb; cursor: not-allowed; }
   .elementonoseleccionable { cursor: not-allowed; }
+  .elementonoseleccionable.mesa { background-color: #bbb; }
   .ocupada { background-color: #F44336; z-index: 5; cursor: not-allowed; }
   .reservada { background-color: #FF9800; z-index: 5; }
   .pendiente { background-color: #FFC107; z-index: 5; cursor: not-allowed; }
