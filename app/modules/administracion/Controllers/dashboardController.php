@@ -533,7 +533,11 @@ class Administracion_dashboardController extends Administracion_mainController
 			'pagos_linea' => $pagosLinea,
 			'pagos_accion' => $pagosAccion,
 			'pagos_datafono' => $pagosDatafono,
-			'capacidad_total' => $totalCapacidad,
+			// Capacidad combinada de mesas + sillas: la tarjeta "Total personas / Total
+			// capacidad" debe reflejar el aforo real del evento, no solo el de mesas
+			// (antes quedaba en 0 en eventos que solo venden sillas).
+			'capacidad_total' => $totalCapacidad + $capacidadSillas,
+			'capacidad_total_mesas' => $totalCapacidad,
 		);
 	}
 	public function getInvitadosPorEdadesData()

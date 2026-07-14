@@ -42,9 +42,10 @@
   $tp = (int)($this->estadisticasGenerales->total_personas ?? 0);
   $ct = (int)($this->estadisticasGenerales->capacidad_total ?? 0);
   $ocupacion = $ct > 0 ? round(($tp / $ct) * 100, 1) : 0;
-  // Las secciones/gráficas de sillas solo se muestran si el evento ya tiene
-  // sillas individuales configuradas, para no ensuciar el dashboard de eventos
-  // que solo venden mesas.
+  // Las secciones/gráficas de mesas o sillas solo se muestran si el evento ya
+  // tiene ese tipo de elemento configurado (activo), para no mostrar gráficas
+  // ni tablas vacías en eventos que solo venden mesas o solo sillas.
+  $hayMesas = (int) ($this->estadisticasGenerales->total_mesas ?? 0) > 0;
   $haySillas = (int) ($this->estadisticasGenerales->total_sillas ?? 0) > 0;
   ?>
   
@@ -289,6 +290,7 @@
       <span class="cfg-icon"><i class="fas fa-building"></i></span>
       Análisis de ocupación por pisos
     </div>
+    <?php if ($hayMesas): ?>
     <div class="row mb-3">
       <div class="col-md-8">
         <div class="div-dashboard">
@@ -385,6 +387,7 @@
         </div>
       </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($haySillas): ?>
       <!-- Gráfica de sillas por piso -->
@@ -460,6 +463,7 @@
       Análisis de ambientes
     </div>
     <div class="row mb-3">
+      <?php if ($hayMesas): ?>
       <div class="col-12 mb-3">
         <div class="div-dashboard">
           <h2><i class="fas fa-chart-bar"></i> Ocupación por ambientes</h2>
@@ -470,6 +474,7 @@
           </div>
         </div>
       </div>
+      <?php endif; ?>
       <div class="col-12">
         <div class="div-dashboard">
           <h2><i class="fas fa-chair"></i> Mesas disponibles por capacidad</h2>
@@ -550,6 +555,7 @@
           </div>
         </div>
       </div>
+      <?php if ($hayMesas): ?>
       <div class="col-12">
         <div class="div-dashboard">
           <h2><i class="fas fa-table"></i> Detalle por ambientes</h2>
@@ -610,6 +616,7 @@
           </div>
         </div>
       </div>
+      <?php endif; ?>
     </div>
 
     <?php if ($haySillas): ?>
@@ -838,60 +845,65 @@
     }
   });
 
-  // Gráfica de ocupación por pisos
-  const pisosCtx = document.getElementById('pisosChart').getContext('2d');
-  new Chart(pisosCtx, {
-    type: 'bar',
-    data: {
-      labels: pisosData.map(p => p.piso_nombre),
-      datasets: [{
-          label: 'Mesas Ocupadas',
-          data: pisosData.map(p => p.mesas_ocupadas),
-          backgroundColor: '#FF6384'
-        },
-        {
-          label: 'Mesas Disponibles',
-          data: pisosData.map(p => p.mesas_disponibles),
-          backgroundColor: '#36A2EB'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: {
-          stacked: true
-        },
-        y: {
-          stacked: true,
-          beginAtZero: true
+  // Gráfica de ocupación por pisos (el canvas solo existe si hay mesas
+  // configuradas, ver $hayMesas en el PHP de esta vista)
+  const pisosCanvas = document.getElementById('pisosChart');
+  if (pisosCanvas) {
+    new Chart(pisosCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: pisosData.map(p => p.piso_nombre),
+        datasets: [{
+            label: 'Mesas Ocupadas',
+            data: pisosData.map(p => p.mesas_ocupadas),
+            backgroundColor: '#FF6384'
+          },
+          {
+            label: 'Mesas Disponibles',
+            data: pisosData.map(p => p.mesas_disponibles),
+            backgroundColor: '#36A2EB'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            stacked: true
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true
+          }
         }
       }
-    }
-  });
+    });
+  }
 
-  // Gráfica de capacidad por pisos
-  const capacidadPisosCtx = document.getElementById('capacidadPisosChart').getContext('2d');
-  new Chart(capacidadPisosCtx, {
-    type: 'doughnut',
-    data: {
-      labels: pisosData.map(p => p.piso_nombre),
-      datasets: [{
-        data: pisosData.map(p => p.capacidad_total),
-        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom'
+  // Gráfica de capacidad por pisos (mismo guard: solo existe si hay mesas)
+  const capacidadPisosCanvas = document.getElementById('capacidadPisosChart');
+  if (capacidadPisosCanvas) {
+    new Chart(capacidadPisosCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: pisosData.map(p => p.piso_nombre),
+        datasets: [{
+          data: pisosData.map(p => p.capacidad_total),
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   // Gráfica de ocupación de sillas por piso (el canvas solo existe si hay sillas
   // configuradas, ver $haySillas en el PHP de esta vista)
@@ -949,39 +961,42 @@
     });
   }
 
-  // Gráfica de ambientes
-  const ambientesCtx = document.getElementById('ambientesChart').getContext('2d');
-  new Chart(ambientesCtx, {
-    type: 'bar',
-    data: {
-      labels: ambientesData.map(a => a.ambiente_nombre + ' (' + a.piso_nombre + ')'),
-      datasets: [{
-          label: 'Mesas Ocupadas',
-          data: ambientesData.map(a => a.mesas_ocupadas),
-          backgroundColor: '#FF6384'
-        },
-        {
-          label: 'Mesas Disponibles',
-          data: ambientesData.map(a => a.mesas_disponibles),
-          backgroundColor: '#36A2EB'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: 'y',
-      scales: {
-        x: {
-          stacked: true,
-          beginAtZero: true
-        },
-        y: {
-          stacked: true
+  // Gráfica de ambientes (el canvas solo existe si hay mesas configuradas,
+  // ver $hayMesas en el PHP de esta vista)
+  const ambientesCanvas = document.getElementById('ambientesChart');
+  if (ambientesCanvas) {
+    new Chart(ambientesCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ambientesData.map(a => a.ambiente_nombre + ' (' + a.piso_nombre + ')'),
+        datasets: [{
+            label: 'Mesas Ocupadas',
+            data: ambientesData.map(a => a.mesas_ocupadas),
+            backgroundColor: '#FF6384'
+          },
+          {
+            label: 'Mesas Disponibles',
+            data: ambientesData.map(a => a.mesas_disponibles),
+            backgroundColor: '#36A2EB'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+          x: {
+            stacked: true,
+            beginAtZero: true
+          },
+          y: {
+            stacked: true
+          }
         }
       }
-    }
-  });
+    });
+  }
 
   // Gráfica de ocupación de sillas por ambiente (el canvas solo existe si hay
   // sillas configuradas, ver $haySillas en el PHP de esta vista)
