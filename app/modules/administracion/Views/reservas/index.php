@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var estInfo  = d.estado_info || { texto: 'Sin estado', badge_class: 'badge-secondary' };
           var estBadge = bdg(estInfo.badge_class, estInfo.texto);
           var primerAmb  = (d.ambientes && d.ambientes.length) ? d.ambientes[0] : null;
-          var primerMesa = (d.mesas && d.mesas.length) ? d.mesas[0] : null;
+          var todasLasMesas = (d.mesas && d.mesas.length) ? d.mesas.map(function(m) { return m.mesa_id; }).join(',') : '';
 
           var cellSizeAncho = 550; // <-- Ancho del contenedor del mapa en px (baja si se sobresale, sube si se ve pequeño)
           var cellSizeAlto  = 380; // <-- Alto del contenedor del mapa en px  (baja si se sobresale, sube si se ve pequeño)
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var iframeSrc = '';
           if (primerAmb) {
             iframeSrc = '/administracion/ambientes/manage?id=' + primerAmb.ambiente_id + '&display=1&solo_mapa=1&px_w=' + cellSizeAncho + '&px_h=' + cellSizeAlto;
-            if (primerMesa) iframeSrc += '&destacar_mesa=' + primerMesa.mesa_id + '&modo=validacion';
+            if (todasLasMesas) iframeSrc += '&destacar_mesa=' + todasLasMesas + '&modo=validacion';
           }
 
           /* ======================================================

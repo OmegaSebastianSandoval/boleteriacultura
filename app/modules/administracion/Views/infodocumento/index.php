@@ -68,7 +68,7 @@
 
         $primeraMesa = !empty($mesas) ? $mesas[0] : null;
         $ambienteId  = $primeraMesa ? ($primeraMesa->mesa_ambiente ?? ($primeraMesa->ambiente_id ?? null)) : null;
-        $mesaId      = $primeraMesa ? ($primeraMesa->mesa_id ?? null) : null;
+        $mesaIds     = !empty($mesas) ? implode(',', array_map(function ($m) { return $m->mesa_id; }, $mesas)) : '';
         $ambienteNom = $primeraMesa ? ($primeraMesa->ambiente_nombre ?? 'Ambiente') : 'Ambiente';
 
         $cellSizeAncho = 100; // <-- Ancho del contenedor del mapa en px (baja si se sobresale, sube si se ve pequeño)
@@ -77,7 +77,7 @@
         $iframeSrc = '';
         if ($ambienteId) {
           $iframeSrc = '/administracion/ambientes/manage?id=' . $ambienteId . '&display=1&solo_mapa=1&px_w=' . $cellSizeAncho . '&px_h=' . $cellSizeAlto;
-          if ($mesaId) $iframeSrc .= '&destacar_mesa=' . $mesaId . '&modo=validacion';
+          if ($mesaIds) $iframeSrc .= '&destacar_mesa=' . $mesaIds . '&modo=validacion';
         }
 
         $estadoKey  = $reserva ? ($reserva->reserva_estado ?? 0) : 0;

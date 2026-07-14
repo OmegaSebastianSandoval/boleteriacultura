@@ -19,7 +19,13 @@ function calcularCellSize($columnas, $filas, $soloMapa = false)
 $ambiente = ['columnas' => $this->content->ambiente_columnas, 'filas' => $this->content->ambiente_filas];
 
 // Variables para resaltar mesa específica (usado en validación)
+// destacar_mesa puede traer una lista de ids separados por coma cuando la reserva
+// tiene varias sillas/mesas asignadas (ver reservas/index.php e infodocumento/index.php)
 $destacarMesa = $_GET['destacar_mesa'] ?? null;
+$destacarMesaIds = $destacarMesa ? array_filter(array_map('intval', explode(',', $destacarMesa))) : [];
+$destacarMesaSelector = implode(', ', array_map(function ($id) {
+	return '.elemento[data-mesa-id="' . $id . '"]';
+}, $destacarMesaIds));
 $modoValidacion = $_GET['modo'] ?? null;
 $soloMapa = isset($_GET['solo_mapa']) && $_GET['solo_mapa'] == '1';
 
@@ -1214,9 +1220,9 @@ if ($this->mesas) {
 		cursor: default !important;
 	}
 
-	<?php if ($destacarMesa && $modoValidacion === 'validacion'): ?>
+	<?php if (!empty($destacarMesaIds) && $modoValidacion === 'validacion'): ?>
 
-	/* En modo validación: todos los elementos en gris excepto el consultado */
+	/* En modo validación: todos los elementos en gris excepto los consultados */
 	.elemento {
 		background: #9e9e9e !important;
 		/* Gris para todos los elementos */
@@ -1227,8 +1233,8 @@ if ($this->mesas) {
 		cursor: default !important;
 	}
 
-	/* Estilos específicos para resaltar SOLO la mesa consultada */
-	.elemento[data-mesa-id="<?= $destacarMesa ?>"] {
+	/* Estilos específicos para resaltar las mesas/sillas consultadas */
+	<?= $destacarMesaSelector ?> {
 		background: linear-gradient(45deg, #FFD700, #FFA500) !important;
 		border: 3px solid #FF6B35 !important;
 		box-shadow: 0 0 20px rgba(255, 215, 0, 0.8) !important;
