@@ -196,11 +196,37 @@
             <!-- Título -->
             <div class="rv-section-title text-center">
               <h2>¿Cuántas boletas deseas adquirir?</h2>
-              <p id="rvSubtitle">Selecciona el tamaño de mesa que necesitas</p>
+              <p id="rvSubtitle"><?php echo ($modoInicial === 'silla') ? 'Indica cuántas sillas deseas comprar' : 'Selecciona el tamaño de mesa que necesitas'; ?></p>
             </div>
 
-            <?php $haySillas = ((int) ($this->sillasDisponibles ?? 0)) > 0; ?>
-            <?php if ($haySillas): ?>
+            <?php
+            $mesasPorCapacidad = [];
+            foreach (($this->mesasDisponibles ?? []) as $item) {
+              $mesasPorCapacidad[(int) $item->mesa_capacidad] = (int) $item->cantidad_mesas;
+            }
+            $capacidadesDisponibles = array_keys($mesasPorCapacidad);
+            sort($capacidadesDisponibles);
+
+            $restante = max(0, $this->capacidadRestante ?? 0);
+            $limiteEvento = (int) $this->maxInvitados;
+            $limiteReal = min($restante, $limiteEvento);
+
+            // Hay al menos una capacidad de mesa disponible dentro del cupo restante
+            $hayMesas = false;
+            foreach ($capacidadesDisponibles as $capacidad) {
+              if ($capacidad <= $limiteReal) {
+                $hayMesas = true;
+                break;
+              }
+            }
+
+            $haySillas = ((int) ($this->sillasDisponibles ?? 0)) > 0;
+            // Si solo hay uno de los dos modos disponible, se arranca directo en ese modo
+            // y no se muestra el selector (no aplica elegir entre una sola opción).
+            $modoInicial = (!$hayMesas && $haySillas) ? 'silla' : 'mesa';
+            ?>
+
+            <?php if ($hayMesas && $haySillas): ?>
               <!-- Selector de modo: mesa completa vs sillas individuales -->
               <div class="rv-mode-toggle text-center">
                 <button type="button" class="btn-modo-seleccion active" data-modo="mesa">
@@ -213,20 +239,10 @@
             <?php endif; ?>
 
             <!-- Panel: mesa completa -->
-            <div id="panelMesas">
+            <div id="panelMesas" <?php echo ($modoInicial === 'silla') ? 'style="display:none;"' : ''; ?>>
             <!-- Cards de capacidad -->
             <div id="cardsContainer" class="rv-tiles-grid">
               <?php
-              $mesasPorCapacidad = [];
-              foreach (($this->mesasDisponibles ?? []) as $item) {
-                $mesasPorCapacidad[(int) $item->mesa_capacidad] = (int) $item->cantidad_mesas;
-              }
-              $capacidadesDisponibles = array_keys($mesasPorCapacidad);
-              sort($capacidadesDisponibles);
-
-              $restante = max(0, $this->capacidadRestante ?? 0);
-              $limiteEvento = (int) $this->maxInvitados;
-              $limiteReal = min($restante, $limiteEvento);
               $hayCards = false;
 
               foreach ($capacidadesDisponibles as $capacidad) {
@@ -267,7 +283,7 @@
             <?php if ($haySillas): ?>
               <?php $maxSillas = min((int) $this->sillasDisponibles, (int) $limiteReal); ?>
               <!-- Panel: sillas individuales -->
-              <div id="panelSillas" style="display:none;">
+              <div id="panelSillas" style="<?php echo ($modoInicial === 'silla') ? 'display:block;' : 'display:none;'; ?>">
                 <div class="rv-sillas-box text-center">
                   <p class="rv-sillas-avail">
                     <i class="fa-solid fa-chair"></i>
@@ -286,7 +302,7 @@
 
             <input type="hidden" name="cantidad_personas" id="cantidadPersonas" required>
             <input type="hidden" name="mesasSeleccionadas" id="mesasSeleccionadasHidden">
-            <input type="hidden" name="tipo_seleccion" id="tipoSeleccionHidden" value="mesa">
+            <input type="hidden" name="tipo_seleccion" id="tipoSeleccionHidden" value="<?php echo $modoInicial; ?>">
 
             <div class="form-text text-center mt-2 d-none">
               Cupo disponible: <strong><?php echo $restante; ?></strong> |
@@ -356,7 +372,7 @@
     }
 
     let seleccionadas = [];
-    let modoSeleccion = 'mesa';
+    let modoSeleccion = tipoHidden.value || 'mesa';
 
     function setCookie (nombre, valor, dias) {
       const d = new Date();
@@ -445,10 +461,10 @@
       }
     }));
 
-    // Si no hay mesas pero sí sillas, arrancar directamente en modo sillas
-    if (cards.length === 0 && haySillas) {
-      const sillaBtn = document.querySelector('.btn-modo-seleccion[data-modo="silla"]');
-      if (sillaBtn) sillaBtn.click();
+    // El modo inicial (mesa o silla) ya viene resuelto desde el servidor según
+    // disponibilidad (ver $modoInicial en la vista); solo falta poblar el estado JS.
+    if (modoSeleccion === 'silla') {
+      actualizarSillas();
     }
 
     document.getElementById("formCantidadPersonas").addEventListener("submit", function (e) {
