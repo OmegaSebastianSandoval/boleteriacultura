@@ -583,7 +583,8 @@ if ($this->mesas) {
 				var ocupadas = parseInt(d.mesas_ocupadas) || 0;
 				var libres = parseInt(d.mesas_libres) || 0;
 				var provisionales = parseInt(d.mesas_provisionales) || 0;
-				var totalM = parseInt(d.total_mesas) || 1;
+				// Puestos totales del ambiente = mesas + sillas individuales (ambos cuentan como "ocupables").
+				var totalM = ((parseInt(d.total_mesas) || 0) + (parseInt(d.total_sillas) || 0)) || 1;
 				var pctOcup = Math.round((ocupadas / totalM) * 100);
 				var pctLibre = Math.round((libres / totalM) * 100);
 				var pctProv = Math.max(0, 100 - pctOcup - pctLibre);
@@ -594,6 +595,7 @@ if ($this->mesas) {
 				h += '<div class="col-md-4" style="display:flex;flex-direction:column;gap:10px;">';
 				h += '<div class="row g-2">';
 				h += kpiCard('chair', 'var(--brand-green)', d.total_mesas, 'Mesas');
+				h += kpiCard('chair', '#0ea5e9', d.total_sillas, 'Sillas');
 				h += kpiCard('users', 'var(--brand)', d.capacidad_total, 'Capacidad');
 				h += kpiCard('calendar-check', '#f59e0b', d.reservas_activas, 'Reservas activas');
 				h += kpiCard('user-friends', '#6366f1', d.total_invitados, 'Invitados totales');
@@ -621,6 +623,7 @@ if ($this->mesas) {
 				h += '<tr><td style="' + tm + '">Piso</td><td style="' + tv + '">' + fv(d.piso_nombre) + '</td></tr>';
 				h += '<tr><td style="' + tm + '">Capacidad</td><td style="' + tv + '">' + fv(amb.ambiente_capacidad) + ' personas</td></tr>';
 				h += '<tr><td style="' + tm + '">Total mesas</td><td style="' + tv + '">' + fv(d.total_mesas) + '</td></tr>';
+				if (parseInt(d.total_sillas) > 0) h += '<tr><td style="' + tm + '">Total sillas</td><td style="' + tv + '">' + fv(d.total_sillas) + '</td></tr>';
 				h += '<tr><td style="' + tm + '">Estado</td><td style="' + tv + '">' + (amb.ambiente_estado == 1 ? bdg('text-bg-success', 'Activo') : bdg('text-bg-secondary', 'Inactivo')) + '</td></tr>';
 				if (amb.ambiente_descuento > 0) h += '<tr><td style="' + tm + '">Descuento</td><td style="' + tv + '"><strong>' + fv(amb.ambiente_descuento) + '%</strong></td></tr>';
 				h += '</table></div></div></div>';

@@ -955,7 +955,8 @@ class Administracion_ambientesController extends Administracion_mainController
 			$ids = array_filter(
 				array_map('trim', explode(',', $r->reserva_mesa_id ?? '')),
 				function ($m) use ($origenId) {
-					return $m !== '' && (int) $m !== $origenId; }
+					return $m !== '' && (int) $m !== $origenId;
+				}
 			);
 			$ids[] = (string) $destinoId;
 			$reservasModel->editField($r->id, 'reserva_mesa_id', implode(',', array_values($ids)));
@@ -1090,7 +1091,8 @@ class Administracion_ambientesController extends Administracion_mainController
 		$mesasActuales = array_filter(
 			array_map('trim', explode(',', $reserva->reserva_mesa_id ?? '')),
 			function ($m) {
-				return $m !== ''; }
+				return $m !== '';
+			}
 		);
 		$mesasActuales[] = (string) $mesa_id;
 		$nuevasMesas = implode(',', array_values($mesasActuales));
@@ -1135,8 +1137,10 @@ class Administracion_ambientesController extends Administracion_mainController
 		$mesasModel = new Administracion_Model_DbTable_Mesas();
 		$reservasModel = new Administracion_Model_DbTable_Reservas();
 
-		$mesas = $mesasModel->getList("mesa_ambiente = '$id' AND mesa_tipo LIKE '%mesa%'", "mesa_nombre ASC");
+		$mesas = $mesasModel->getList("mesa_ambiente = '$id' AND mesa_tipo = 'mesa'", "mesa_nombre ASC");
+		$sillas = $mesasModel->getList("mesa_ambiente = '$id' AND mesa_tipo = 'silla'", "mesa_nombre ASC");
 		$totalMesas = count($mesas);
+		$totalSillas = count($sillas);
 		$capacidadTotal = 0;
 		$mesasOcupadas = 0;
 		$mesasLibres = 0;
@@ -1153,13 +1157,33 @@ class Administracion_ambientesController extends Administracion_mainController
 				$mesasProvisionales++;
 		}
 
+		// Las sillas son puestos individuales (capacidad 1 c/u); se suman a los mismos
+		// totales combinados de ocupación/capacidad que las mesas, y también se reportan
+		// aparte (total_sillas) para la tarjeta KPI de sillas.
+		$sillasOcupadas = 0;
+		$sillasLibres = 0;
+		$sillasProvisionales = 0;
+		foreach ($sillas as $s) {
+			$capacidadTotal += intval($s->mesa_capacidad ?? 0);
+			if ((int) ($s->mesa_estado ?? 0) === 1)
+				$sillasOcupadas++;
+			else
+				$sillasLibres++;
+			if ($s->mesa_provision !== null && $s->mesa_provision !== '')
+				$sillasProvisionales++;
+		}
+		$mesasOcupadas += $sillasOcupadas;
+		$mesasLibres += $sillasLibres;
+		$mesasProvisionales += $sillasProvisionales;
+
 		$reservasActivas = 0;
 		$proximasReservas = [];
 		$reservasPorMes = array_fill(0, 12, 0);
 		$totalInvitados = 0;
 
-		if (!empty($mesas)) {
-			$mesaIds = array_map(fn($m) => intval($m->mesa_id), $mesas);
+		$elementos = array_merge($mesas, $sillas);
+		if (!empty($elementos)) {
+			$mesaIds = array_map(fn($m) => intval($m->mesa_id), $elementos);
 			$findInSets = implode(' OR ', array_map(fn($mid) => "FIND_IN_SET('$mid', reserva_mesa_id)", $mesaIds));
 			$hoy = date('Y-m-d');
 			$anio = date('Y');
@@ -1190,6 +1214,7 @@ class Administracion_ambientesController extends Administracion_mainController
 			'ambiente' => $ambiente,
 			'piso_nombre' => $pisoNombre,
 			'total_mesas' => $totalMesas,
+			'total_sillas' => $totalSillas,
 			'capacidad_total' => $capacidadTotal,
 			'mesas_ocupadas' => $mesasOcupadas,
 			'mesas_libres' => $mesasLibres,

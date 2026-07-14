@@ -293,7 +293,7 @@
                   <input type="number" id="cantidadSillas" class="form-control rv-sillas-input"
                     min="1" max="<?php echo max(1, $maxSillas); ?>" value="1"
                     <?php echo $maxSillas < 1 ? 'disabled' : ''; ?>>
-                  <div class="form-text rv-sillas-hint">
+                  <div class="form-text rv-sillas-hint text-white">
                     Todas las sillas de la compra deben pertenecer al mismo ambiente. Máximo <?php echo max(0, $maxSillas); ?>.
                   </div>
                 </div>
