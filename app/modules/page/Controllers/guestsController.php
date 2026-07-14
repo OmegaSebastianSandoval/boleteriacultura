@@ -435,9 +435,10 @@ class Page_guestsController extends Page_mainController
         echo json_encode(['status' => false, 'message' => 'Los documentos no coinciden.']);
         return;
       }
-      // Solo bloquear si el documento ya está en OTRA reserva activa (no cuenta reservas propias canceladas/antiguas)
+      // Solo bloquear si el documento ya está en OTRA reserva activa o pendiente de confirmación
+      // (2,3,11 = confirmadas/pagadas; 4,7 = pago pendiente Placetopay/sistema; no cuenta reservas propias canceladas/antiguas)
       $enOtraReservaActiva = $invitadosReservaModel->getListWithReserva(
-        "documento_invitado = '$documento' AND reserva_id_reserva != '$reservaId' AND reserva_estado IN (2,3,11)"
+        "documento_invitado = '$documento' AND reserva_id_reserva != '$reservaId' AND reserva_estado IN (2,3,4,7,11)"
       );
       if ($enOtraReservaActiva) {
         echo json_encode(['status' => false, 'message' => 'El documento ya está registrado en otra reserva activa.']);
@@ -1070,8 +1071,8 @@ class Page_guestsController extends Page_mainController
       }
 
       $invitadosReservasModel = new Administracion_Model_DbTable_Invitadosreservas();
-      $existeOtra = $invitadosReservasModel->getListWithReserva("documento_invitado = '$documento' AND reserva_id_reserva != '$reservaId' 
-      AND reserva_estado IN (2,3, 11)", "");
+      $existeOtra = $invitadosReservasModel->getListWithReserva("documento_invitado = '$documento' AND reserva_id_reserva != '$reservaId'
+      AND reserva_estado IN (2,3,4,7,11)", "");
       if ($existeOtra) {
         $errores[] = "Fila " . ($index + 1) . ": Documento $documento ya registrado en otra reserva.";
         continue;

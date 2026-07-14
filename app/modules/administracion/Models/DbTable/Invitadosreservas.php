@@ -120,9 +120,10 @@ id_invitado = '" . $id . "'";
   }
 
   /**
-   * Retorna los documentos que ya están en una reserva activa (estados 2, 3, 11)
+   * Retorna los documentos que ya están en una reserva activa o pendiente de confirmación
+   * (estados 2, 3, 11 = confirmadas/pagadas; 4, 7 = pago pendiente Placetopay/sistema)
    * @param array $documentos Lista de números de documento a verificar
-   * @return array Documentos bloqueados (ya en reserva activa)
+   * @return array Documentos bloqueados (ya en reserva activa o pendiente)
    */
   public function getDocumentosEnReservasActivas(array $documentos)
   {
@@ -139,7 +140,7 @@ id_invitado = '" . $id . "'";
               FROM invitadosreserva i
               INNER JOIN reservas r ON i.reserva_id_reserva = r.id
               WHERE i.documento_invitado IN ($inList)
-              AND r.reserva_estado IN (2, 3, 11)";
+              AND r.reserva_estado IN (2, 3, 4, 7, 11)";
 
     $res = $this->_conn->query($query)->fetchAsObject();
     return array_column($res, 'documento_invitado');
