@@ -517,7 +517,31 @@ class Core_placetopayController extends Controllers_Abstract
     }
 
     $reference = $data['reference'];
-    if (!str_starts_with($reference, 'BOL_')) {
+    // if (str_starts_with($reference, 'CULBOL_')) {
+    //   try {
+    //     $url = 'https://junior-typological-formlessly.ngrok-free.dev/core/placetopay/notificacion';
+    //     $ch = curl_init($url);
+    //     curl_setopt($ch, CURLOPT_POST, true);
+    //     curl_setopt($ch, CURLOPT_POSTFIELDS, $rawBody);
+    //     curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    //       'Content-Type: application/json',
+    //       'ngrok-skip-browser-warning: true',
+    //     ]);
+    //     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    //     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+    //     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    //     curl_exec($ch);
+    //     curl_close($ch);
+    //     $this->logStep($logs, 'PLACETOPAY NOTIFICACION - FORWARD DEBUG', "Referencia sin prefijo CULBOL_, reenviada a endpoint debug: $reference");
+    //   } catch (\Throwable $e) {
+    //     $this->logStep($logs, 'PLACETOPAY NOTIFICACION - FORWARD ERROR', "Error reenviando a endpoint debug: " . $e->getMessage());
+    //   }
+
+    //   $logModel->insertBatch($logs);
+    //   return;
+    // }
+
+    if (!str_starts_with($reference, 'BOL_') && !str_starts_with($reference, 'CULBOL_')) {
       // No es un error: es una notificación válida de otra plataforma que comparte las
       // mismas credenciales de PlaceToPay. Se responde 200 para que no reintenten.
       $this->logStep($logs, 'PLACETOPAY NOTIFICACION - IGNORADA', "Referencia de otra plataforma, se ignora: $reference");
@@ -564,4 +588,54 @@ class Core_placetopayController extends Controllers_Abstract
 
     $logModel->insertBatch($logs);
   }
+
+  /**
+   * Acción de diagnóstico manual: hace un POST de prueba al endpoint de
+   * debug (ngrok) para confirmar que el servidor de pruebas puede hacer
+   * salidas curl correctamente (extensión disponible, sin bloqueo de
+   * firewall, SSL ok, etc). No toca lógica de negocio ni base de datos.
+   */
+  // public function testcurlAction()
+  // {
+  //   $this->setLayout('blanco');
+
+  //   $url = 'https://junior-typological-formlessly.ngrok-free.dev/core/placetopay/notificacion';
+  //   $payload = json_encode(['test' => true, 'origen' => 'testcurlAction', 'timestamp' => date('Y-m-d H:i:s')]);
+
+  //   echo "<h2>Test de conexión CURL</h2>";
+  //   echo "<p><strong>URL:</strong> $url</p>";
+  //   echo "<p><strong>Payload enviado:</strong> " . htmlspecialchars($payload) . "</p>";
+
+  //   if (!function_exists('curl_init')) {
+  //     echo "<p style='color: red;'><strong>ERROR:</strong> La extensión curl no está disponible en este servidor.</p>";
+  //     return;
+  //   }
+
+  //   $ch = curl_init($url);
+  //   curl_setopt($ch, CURLOPT_POST, true);
+  //   curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+  //   curl_setopt($ch, CURLOPT_HTTPHEADER, [
+  //     'Content-Type: application/json',
+  //     'ngrok-skip-browser-warning: true',
+  //   ]);
+  //   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  //   curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+  //   curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+  //   $response = curl_exec($ch);
+  //   $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  //   $curlErrno = curl_errno($ch);
+  //   $curlError = curl_error($ch);
+  //   curl_close($ch);
+
+  //   if ($curlErrno) {
+  //     echo "<p style='color: red;'><strong>ERROR CURL ($curlErrno):</strong> " . htmlspecialchars($curlError) . "</p>";
+  //   } else {
+  //     echo "<p style='color: green;'><strong>CURL ejecutado correctamente.</strong></p>";
+  //   }
+
+  //   echo "<p><strong>Código HTTP:</strong> $httpCode</p>";
+  //   echo "<p><strong>Respuesta recibida:</strong></p>";
+  //   echo "<pre>" . htmlspecialchars($response !== false ? $response : '(sin respuesta)') . "</pre>";
+  // }
 }

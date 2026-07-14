@@ -74,11 +74,18 @@ $estadometodo = [
         $cosocioHijo25 = 0;
         $invitado = 0;
         $valorTotal = 0;
-        $precioSocio = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio)) ? floatval($reserva->categorias[0]->categoria_precio_socio) : 0;
-        $precioSocioHijo = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio_hijo)) ? floatval($reserva->categorias[0]->categoria_precio_socio_hijo) : 0;
-        $precioCosocio = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio)) ? floatval($reserva->categorias[0]->categoria_precio_socio) : 0;
-        $precioCosocioHijo = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio_hijo)) ? floatval($reserva->categorias[0]->categoria_precio_socio_hijo) : 0;
-        $precioInvitado = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_invitado)) ? floatval($reserva->categorias[0]->categoria_precio_invitado) : 0;
+        // Reserva de sillas individuales: usar las tarifas de silla de la categoría
+        // (categoria_precio_silla_*), no las de mesa. Mismo esquema que
+        // eventoController::resumenAction().
+        $esModoSilla = !empty($reserva->mesas) && is_array($reserva->mesas) && ($reserva->mesas[0]->mesa_tipo === 'silla');
+        $campoSocioUnit = $esModoSilla ? 'categoria_precio_silla_socio' : 'categoria_precio_socio';
+        $campoSocioHijoUnit = $esModoSilla ? 'categoria_precio_silla_socio_hijo' : 'categoria_precio_socio_hijo';
+        $campoInvitadoUnit = $esModoSilla ? 'categoria_precio_silla_invitado' : 'categoria_precio_invitado';
+        $precioSocio = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->$campoSocioUnit)) ? floatval($reserva->categorias[0]->$campoSocioUnit) : 0;
+        $precioSocioHijo = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->$campoSocioHijoUnit)) ? floatval($reserva->categorias[0]->$campoSocioHijoUnit) : 0;
+        $precioCosocio = $precioSocio;
+        $precioCosocioHijo = $precioSocioHijo;
+        $precioInvitado = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->$campoInvitadoUnit)) ? floatval($reserva->categorias[0]->$campoInvitadoUnit) : 0;
         $valorPorTipo = [
           'Socio' => 0,
           'Socio hijo < 25' => 0,

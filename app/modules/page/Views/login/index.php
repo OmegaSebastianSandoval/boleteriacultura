@@ -25,7 +25,7 @@
                                 <div class="col-lg-12 mb-3">
                                     <label class="form-label">Contraseña</label>
                                     <div class="input-group">
-                                        <input type="password" class="form-control" name="pass" id="pass" required>
+                                        <input type="password" class="form-control" name="pass" id="pass" value="<?= APPLICATION_ENV === 'development' ? 'Omega.2025*' : '' ?>"  required>
                                         <span class="input-group-text" style="cursor: pointer;" onclick="togglePassword('pass', this)">
                                             <i class="fa-solid fa-eye" id="eye-icon-pass"></i>
                                         </span>

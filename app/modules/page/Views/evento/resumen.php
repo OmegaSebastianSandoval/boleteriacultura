@@ -100,12 +100,13 @@ if ($this->mesaInfo && $this->categoria) {
             </div>
           </div>
 
-          <!-- Información de Mesa y Categoría -->
-          <?php if ($this->mesaInfo && $this->categoria): ?>
+          <!-- Información de Mesa/Silla y Categoría -->
+          <?php $esSillaResumen = ($this->esModoSilla); ?>
+          <?php if ($this->mesaInfo && ($this->categoria || $esSillaResumen)): ?>
             <div class="rs-card mb-3">
               <div class="rs-card-header">
-                <i class="fa-solid fa-table me-2"></i>
-                <h5>Información de las mesas</h5>
+                <i class="fa-solid <?= $esSillaResumen ? 'fa-chair' : 'fa-table' ?> me-2"></i>
+                <h5><?= $esSillaResumen ? 'Información de las sillas' : 'Información de las mesas' ?></h5>
               </div>
               <div class="rs-card-body p-0">
                 <?php foreach ($this->mesaInfo as $index => $mesa): ?>
@@ -119,20 +120,22 @@ if ($this->mesaInfo && $this->categoria) {
                       <span class="rs-mesa-val"><?= htmlspecialchars($mesa->ambiente_nombre) ?></span>
                     </div>
                     <div class="rs-mesa-dato">
-                      <span class="rs-mesa-key">Mesa</span>
+                      <span class="rs-mesa-key"><?= $esSillaResumen ? 'Silla' : 'Mesa' ?></span>
                       <span class="rs-mesa-val"><?= htmlspecialchars($mesa->mesa_nombre) ?></span>
                     </div>
                     <div class="rs-mesa-dato">
                       <span class="rs-mesa-key">Código</span>
                       <span class="rs-mesa-val"><?= htmlspecialchars($mesa->mesa_codigo) ?></span>
                     </div>
+                    <?php if (!$esSillaResumen): ?>
                     <div class="rs-mesa-dato">
                       <span class="rs-mesa-key">Capacidad</span>
                       <span class="rs-mesa-val"><?= $mesa->mesa_capacidad ?> personas</span>
                     </div>
+                    <?php endif; ?>
                     <div class="rs-mesa-dato d-none">
                       <span class="rs-mesa-key">Categoría</span>
-                      <span class="rs-mesa-val"><?= htmlspecialchars($this->categoria->categoria_nombre) ?></span>
+                      <span class="rs-mesa-val"><?= htmlspecialchars($this->categoria->categoria_nombre ?? '') ?></span>
                     </div>
                   </div>
                   <?php if ($index < count($this->mesaInfo) - 1): ?>
@@ -384,8 +387,10 @@ if ($this->mesaInfo && $this->categoria) {
             <ul>
               <li>La reserva es intransferible y debe ser confirmada por el socio titular</li>
               <li>El pago debe realizarse dentro del tiempo establecido para mantener la reserva</li>
-              <li>La mesa asignada se mantendrá durante todo el evento</li>
+              <li><?= $esSillaResumen ? 'Las sillas asignadas se mantendrán durante todo el evento' : 'La mesa asignada se mantendrá durante todo el evento' ?></li>
+              <?php if (!$esSillaResumen): ?>
               <li>El número de invitados no puede exceder la capacidad de la mesa reservada</li>
+              <?php endif; ?>
             </ul>
             <h6>2. Políticas del Evento</h6>
             <ul>

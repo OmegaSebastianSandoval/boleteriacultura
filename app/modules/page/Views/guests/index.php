@@ -989,9 +989,11 @@
                         <th>Tipo</th>
                         <th>Nombre</th>
                         <th>Apellido</th>
-                        <th>Documento</th>  
+                        <th>Documento</th>
                         <th>Confirmar doc.</th>
+                        <?php if ($this->menuHabilitado): ?>
                         <th>Menú</th>
+                        <?php endif; ?>
                         <th>Boleteria</th>
                       </tr>
                     </thead>
@@ -1011,6 +1013,9 @@
                             <input type="hidden" name="invitados[<?= $reg->id_invitado ?>][invitadoReserva_correo_invitado]" value="<?= htmlspecialchars($reg->invitadoReserva_correo_invitado ?? '') ?>">
                             <input type="hidden" name="invitados[<?= $reg->id_invitado ?>][invitadoReserva_fecha_nacimiento]" value="<?= htmlspecialchars($reg->invitadoReserva_fecha_nacimiento ?? '1990-01-01') ?>">
                             <input type="hidden" name="invitados[<?= $reg->id_invitado ?>][invitadoReserva_telefono]" value="<?= htmlspecialchars($reg->invitadoReserva_telefono ?? '') ?>">
+                            <?php if (!$this->menuHabilitado): ?>
+                              <input type="hidden" name="invitados[<?= $reg->id_invitado ?>][invitadoReserva_menu]" value="normal">
+                            <?php endif; ?>
                           </td>
                           <td>
                             <div class="inv-input inv-readonly"><?= htmlspecialchars($reg->invitadoReserva_apellido_invitado) ?></div>
@@ -1023,6 +1028,7 @@
                           <td class="inv-confirm-cell">
                             <i class="fa-solid fa-circle-check inv-confirm-check" data-bs-toggle="tooltip" title="Documento confirmado"></i>
                           </td>
+                          <?php if ($this->menuHabilitado): ?>
                           <td>
                             <div class="inv-menu-radios<?= $reg->boleta_enviada ? ' is-locked' : '' ?>">
                               <label class="inv-menu-radio">
@@ -1038,6 +1044,7 @@
                               <input type="hidden" name="invitados[<?= $reg->id_invitado ?>][invitadoReserva_menu]" value="<?= htmlspecialchars($menuActual) ?>">
                             <?php endif; ?>
                           </td>
+                          <?php endif; ?>
                           <?php
                             $tituloEnvio = $reg->boleta_reenvio_agotado
                               ? 'Ya se reenvió esta boleta'
@@ -1530,6 +1537,7 @@
 
     const availableSlots = typeof pendientesPool !== 'undefined' ? [...pendientesPool] : [];
     const totalPend = typeof totalPendienteInicial !== 'undefined' ? totalPendienteInicial : 0;
+    const menuHabilitado = <?= $this->menuHabilitado ? 'true' : 'false' ?>;
 
     function initTooltips(scope) {
       if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
@@ -1663,7 +1671,9 @@
         <td>
           <input type="text" class="form-control inv-input confirm-document" placeholder="Confirmar" maxlength="20"
             name="invitados[${invitado.id}][confirmar_documento]" autocomplete="off">
+          ${menuHabilitado ? '' : `<input type="hidden" name="invitados[${invitado.id}][invitadoReserva_menu]" value="normal">`}
         </td>
+        ${menuHabilitado ? `
         <td>
           <div class="inv-menu-radios">
             <label class="inv-menu-radio">
@@ -1676,6 +1686,7 @@
             </label>
           </div>
         </td>
+        ` : ''}
         <td class="text-center">
           <div class="inv-row-actions">
             <button type="button" class="inv-send-row-btn d-none" data-bs-toggle="tooltip" title="Enviar boleta" disabled>

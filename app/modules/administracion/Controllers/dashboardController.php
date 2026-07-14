@@ -144,7 +144,38 @@ class Administracion_dashboardController extends Administracion_mainController
 	}
 
 	/**
-	 * Obtiene los datos de capacidad por pisos
+	 * Agrupa una lista de elementos (mesas o sillas) en totales de ocupación/capacidad.
+	 * Reutilizado por getPisosData()/getAmbientesData() para no duplicar la lógica de
+	 * conteo entre mesas y sillas.
+	 * @return object con las propiedades: total, ocupados, disponibles, capacidad_total, capacidad_ocupada
+	 */
+	private function agregarStatsElementos($elementos)
+	{
+		$total = count($elementos);
+		$ocupados = 0;
+		$capacidadTotal = 0;
+		$capacidadOcupada = 0;
+
+		foreach ($elementos as $el) {
+			$capacidadTotal += (int) $el->mesa_capacidad;
+			$estaOcupado = $el->mesa_estado == '1' || (($el->mesa_estado !== null && $el->mesa_estado !== '0') && $el->mesa_provision);
+			if ($estaOcupado) {
+				$ocupados++;
+				$capacidadOcupada += (int) $el->mesa_capacidad;
+			}
+		}
+
+		return (object) array(
+			'total' => $total,
+			'ocupados' => $ocupados,
+			'disponibles' => $total - $ocupados,
+			'capacidad_total' => $capacidadTotal,
+			'capacidad_ocupada' => $capacidadOcupada,
+		);
+	}
+
+	/**
+	 * Obtiene los datos de capacidad por pisos (mesas y sillas por separado)
 	 * @return array
 	 */
 	private function getPisosData()
@@ -158,38 +189,32 @@ class Administracion_dashboardController extends Administracion_mainController
 		$pisosData = array();
 
 		foreach ($pisos as $piso) {
-			// $mesasDelPiso = $mesasModel->getList("mesa_ambiente IN (SELECT ambiente_id FROM ambientes WHERE ambiente_piso = {$piso->piso_id})  AND mesa_tipo = 'mesa' AND mesa_activa = 1 AND (mesa_provision <> 2 OR mesa_provision IS NULL)", "");
-			$mesasDelPiso = $mesasModel->getList(
-				"mesa_ambiente IN (
-        SELECT ambiente_id FROM ambientes 
-        WHERE ambiente_piso = {$piso->piso_id} 
+			$filtroBase = "mesa_ambiente IN (
+        SELECT ambiente_id FROM ambientes
+        WHERE ambiente_piso = {$piso->piso_id}
         AND ambiente_estado = 1
-    ) 
-    AND mesa_tipo = 'mesa' 
-    AND mesa_activa = 1 
-    AND (mesa_provision <> 2 OR mesa_provision IS NULL)",
-				""
-			);
-			$totalMesas = count($mesasDelPiso);
-			$mesasOcupadas = 0;
-			$capacidadTotal = 0;
-			$capacidadOcupada = 0;
+    )
+    AND mesa_activa = 1
+    AND (mesa_provision <> 2 OR mesa_provision IS NULL)";
 
-			foreach ($mesasDelPiso as $mesa) {
-				$capacidadTotal += (int) $mesa->mesa_capacidad;
-				if ($mesa->mesa_estado == '1' || ($mesa->mesa_estado !== null && $mesa->mesa_estado !== '0') && $mesa->mesa_provision) {
-					$mesasOcupadas++;
-					$capacidadOcupada += (int) $mesa->mesa_capacidad;
-				}
-			}
+			$mesasDelPiso = $mesasModel->getList("$filtroBase AND mesa_tipo = 'mesa'", "");
+			$sillasDelPiso = $mesasModel->getList("$filtroBase AND mesa_tipo = 'silla'", "");
+
+			$statsMesas = $this->agregarStatsElementos($mesasDelPiso);
+			$statsSillas = $this->agregarStatsElementos($sillasDelPiso);
 
 			$pisosData[] = (object) array(
 				'piso_nombre' => $piso->piso_nombre,
-				'total_mesas' => $totalMesas,
-				'mesas_ocupadas' => $mesasOcupadas,
-				'mesas_disponibles' => $totalMesas - $mesasOcupadas,
-				'capacidad_total' => $capacidadTotal,
-				'capacidad_ocupada' => $capacidadOcupada
+				'total_mesas' => $statsMesas->total,
+				'mesas_ocupadas' => $statsMesas->ocupados,
+				'mesas_disponibles' => $statsMesas->disponibles,
+				'capacidad_total' => $statsMesas->capacidad_total,
+				'capacidad_ocupada' => $statsMesas->capacidad_ocupada,
+				'total_sillas' => $statsSillas->total,
+				'sillas_ocupadas' => $statsSillas->ocupados,
+				'sillas_disponibles' => $statsSillas->disponibles,
+				'capacidad_sillas_total' => $statsSillas->capacidad_total,
+				'capacidad_sillas_ocupada' => $statsSillas->capacidad_ocupada,
 			);
 		}
 		$getPisoNum = static function (?string $name): int {
@@ -262,14 +287,20 @@ class Administracion_dashboardController extends Administracion_mainController
 			$categoria = $categoriasModel->getById($ambiente->ambiente_categoria);
 			$categoriaNombre = $categoria ? $categoria->categoria_nombre : 'Sin categoría';
 
-			// Obtener mesas del ambiente
+			// Obtener mesas y sillas del ambiente por separado
 			$mesasDelAmbiente = $mesasModel->getList("mesa_ambiente = {$ambiente->ambiente_id} AND mesa_tipo = 'mesa' AND mesa_activa = 1", "");
+			$sillasDelAmbiente = $mesasModel->getList("mesa_ambiente = {$ambiente->ambiente_id} AND mesa_tipo = 'silla' AND mesa_activa = 1", "");
 
 			$totalMesas = count($mesasDelAmbiente);
+			$totalSillas = count($sillasDelAmbiente);
 			$mesasOcupadas = 0;
+			$sillasOcupadas = 0;
 			$capacidadTotal = 0;
 			$capacidadOcupada = 0;
+			$capacidadSillasTotal = 0;
+			$capacidadSillasOcupada = 0;
 			$mesasLibres = array();
+			$sillasLibres = array();
 			$totalSocios = 0;
 			$totalOtros = 0;
 
@@ -292,7 +323,27 @@ class Administracion_dashboardController extends Administracion_mainController
 				}
 			}
 
-			if ($totalMesas > 0) { // Solo incluir ambientes con mesas
+			foreach ($sillasDelAmbiente as $silla) {
+				$capacidadSillasTotal += (int) $silla->mesa_capacidad;
+				if ($silla->mesa_estado == '1' || (($silla->mesa_estado !== null && $silla->mesa_estado !== '0') && $silla->mesa_provision)) {
+					$sillasOcupadas++;
+					$capacidadSillasOcupada += (int) $silla->mesa_capacidad;
+					$rid = $mesaAReserva[(string) $silla->mesa_id] ?? null;
+					if ($rid && isset($invPorReserva[$rid])) {
+						$totalSocios += $invPorReserva[$rid]['socios'];
+						$totalOtros  += $invPorReserva[$rid]['otros'];
+					}
+				} else {
+					$sillasLibres[] = array(
+						'mesa_nombre' => $silla->mesa_nombre,
+						'mesa_precio' => $silla->mesa_precio,
+					);
+				}
+			}
+
+			// Antes solo se incluían ambientes con mesas; un ambiente 100% de sillas
+			// (o híbrido) quedaba fuera del dashboard por completo.
+			if ($totalMesas > 0 || $totalSillas > 0) {
 				$ambientesData[] = (object) array(
 					'ambiente_id' => $ambiente->ambiente_id,
 					'ambiente_nombre' => $ambiente->ambiente_nombre,
@@ -304,6 +355,12 @@ class Administracion_dashboardController extends Administracion_mainController
 					'capacidad_total' => $capacidadTotal,
 					'capacidad_ocupada' => $capacidadOcupada,
 					'mesas_libres' => $mesasLibres,
+					'total_sillas' => $totalSillas,
+					'sillas_ocupadas' => $sillasOcupadas,
+					'sillas_disponibles' => $totalSillas - $sillasOcupadas,
+					'capacidad_sillas_total' => $capacidadSillasTotal,
+					'capacidad_sillas_ocupada' => $capacidadSillasOcupada,
+					'sillas_libres' => $sillasLibres,
 					'total_socios' => $totalSocios,
 					'total_otros' => $totalOtros,
 				);
@@ -385,30 +442,55 @@ class Administracion_dashboardController extends Administracion_mainController
 		$fechaPrimera = null;
 		$fechaUltima = null;
 		$mesasVendidas = 0;
+		$sillasVendidas = 0;
 		$totalMesas = 0;
 		$totalCapacidad = 0;
+		$totalSillas = 0;
+		$capacidadSillas = 0;
 
-		// $mesas = $mesasModel->getList("mesa_tipo = 'mesa' AND mesa_activa = 1", "");
-		$mesas = $mesasModel->getList(
-			"mesa_tipo = 'mesa' AND mesa_activa = 1 AND mesa_ambiente IN (
-        SELECT ambiente_id FROM ambientes 
-        WHERE ambiente_estado = 1 
+		$filtroAmbientesActivos = "mesa_activa = 1 AND mesa_ambiente IN (
+        SELECT ambiente_id FROM ambientes
+        WHERE ambiente_estado = 1
         AND ambiente_piso IN (
             SELECT piso_id FROM pisos WHERE piso_estado = 1
         )
-    )",
-			""
-		);
+    )";
+
+		$mesas = $mesasModel->getList("mesa_tipo = 'mesa' AND $filtroAmbientesActivos", "");
+		$sillas = $mesasModel->getList("mesa_tipo = 'silla' AND $filtroAmbientesActivos", "");
 		$totalMesas = count($mesas);
+		$totalSillas = count($sillas);
 		foreach ($mesas as $mesa) {
 			$totalCapacidad += (int) $mesa->mesa_capacidad;
+		}
+		foreach ($sillas as $silla) {
+			$capacidadSillas += (int) $silla->mesa_capacidad;
+		}
+
+		// Mapa mesa_id -> tipo, para clasificar cada id de reserva_mesa_id sin hacer
+		// una consulta por id. Antes esto no existía y "mesas_vendidas" contaba TODOS
+		// los ids (mesas y sillas mezclados) mientras "total_mesas" solo contaba mesas,
+		// lo que inflaba/rompía el % de ocupación de la tarjeta en cuanto se vendía
+		// alguna silla.
+		$tipoPorMesaId = [];
+		foreach ($mesas as $mesa) {
+			$tipoPorMesaId[(string) $mesa->mesa_id] = 'mesa';
+		}
+		foreach ($sillas as $silla) {
+			$tipoPorMesaId[(string) $silla->mesa_id] = 'silla';
 		}
 
 		foreach ($reservas as $reserva) {
 			$totalIngresos += (float) ($reserva->reserva_total_pagar ?? 0);
 			$totalPersonas += (int) ($reserva->reserva_total_personas ?? 0);
-			$mesasIds = array_filter(array_map('trim', explode(',', $reserva->reserva_mesa_id ?? '')));
-			$mesasVendidas += count($mesasIds);
+			$idsReserva = array_filter(array_map('trim', explode(',', $reserva->reserva_mesa_id ?? '')));
+			foreach ($idsReserva as $mid) {
+				if (($tipoPorMesaId[$mid] ?? 'mesa') === 'silla') {
+					$sillasVendidas++;
+				} else {
+					$mesasVendidas++;
+				}
+			}
 
 			$invitadosSocios = $invitadosReservasModel->getList("reserva_id_reserva = {$reserva->id} AND invitado_tipo = '1'", "");
 			$invitadosInvitados = $invitadosReservasModel->getList("reserva_id_reserva = {$reserva->id} AND invitado_tipo = '2'", "");
@@ -445,6 +527,9 @@ class Administracion_dashboardController extends Administracion_mainController
 			'fecha_ultima_reserva' => $fechaUltima,
 			'mesas_vendidas' => $mesasVendidas,
 			'total_mesas' => $totalMesas,
+			'sillas_vendidas' => $sillasVendidas,
+			'total_sillas' => $totalSillas,
+			'capacidad_sillas' => $capacidadSillas,
 			'pagos_linea' => $pagosLinea,
 			'pagos_accion' => $pagosAccion,
 			'pagos_datafono' => $pagosDatafono,

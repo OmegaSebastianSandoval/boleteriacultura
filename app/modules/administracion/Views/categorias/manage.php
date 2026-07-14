@@ -31,6 +31,23 @@
 					<input type="text" value="<?= $this->content->categoria_precio_invitado; ?>" name="categoria_precio_invitado" id="categoria_precio_invitado" class="form-control">
 				</div>
 
+				<div class="col-12">
+					<hr>
+					<label class="control-label mb-2"><i class="fas fa-chair"></i> Precio de silla individual (por tipo de participante)</label>
+				</div>
+				<div class="col">
+					<label for="categoria_precio_silla_socio" class="control-label">Precio silla socio</label>
+					<input type="text" value="<?= $this->content->categoria_precio_silla_socio; ?>" name="categoria_precio_silla_socio" id="categoria_precio_silla_socio" class="form-control">
+				</div>
+				<div class="col">
+					<label for="categoria_precio_silla_socio_hijo" class="control-label">Precio silla socio hijo</label>
+					<input type="text" value="<?= $this->content->categoria_precio_silla_socio_hijo; ?>" name="categoria_precio_silla_socio_hijo" id="categoria_precio_silla_socio_hijo" class="form-control">
+				</div>
+				<div class="col">
+					<label for="categoria_precio_silla_invitado" class="control-label">Precio silla invitado</label>
+					<input type="text" value="<?= $this->content->categoria_precio_silla_invitado; ?>" name="categoria_precio_silla_invitado" id="categoria_precio_silla_invitado" class="form-control">
+				</div>
+
 				<div class="col-12 d-none">
 					<textarea name="categoria_descripcion" id="categoria_descripcion" class="form-control" rows="10"><?= $this->content->categoria_descripcion; ?></textarea>
 				</div>

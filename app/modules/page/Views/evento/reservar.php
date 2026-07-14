@@ -196,9 +196,24 @@
             <!-- Título -->
             <div class="rv-section-title text-center">
               <h2>¿Cuántas boletas deseas adquirir?</h2>
-              <p>Selecciona el tamaño de mesa que necesitas</p>
+              <p id="rvSubtitle">Selecciona el tamaño de mesa que necesitas</p>
             </div>
 
+            <?php $haySillas = ((int) ($this->sillasDisponibles ?? 0)) > 0; ?>
+            <?php if ($haySillas): ?>
+              <!-- Selector de modo: mesa completa vs sillas individuales -->
+              <div class="rv-mode-toggle text-center">
+                <button type="button" class="btn-modo-seleccion active" data-modo="mesa">
+                  <i class="fa-solid fa-table-list"></i> Mesa completa
+                </button>
+                <button type="button" class="btn-modo-seleccion" data-modo="silla">
+                  <i class="fa-solid fa-chair"></i> Sillas individuales
+                </button>
+              </div>
+            <?php endif; ?>
+
+            <!-- Panel: mesa completa -->
+            <div id="panelMesas">
             <!-- Cards de capacidad -->
             <div id="cardsContainer" class="rv-tiles-grid">
               <?php
@@ -247,9 +262,31 @@
               }
               ?>
             </div>
+            </div><!-- /panelMesas -->
+
+            <?php if ($haySillas): ?>
+              <?php $maxSillas = min((int) $this->sillasDisponibles, (int) $limiteReal); ?>
+              <!-- Panel: sillas individuales -->
+              <div id="panelSillas" style="display:none;">
+                <div class="rv-sillas-box text-center">
+                  <p class="rv-sillas-avail">
+                    <i class="fa-solid fa-chair"></i>
+                    <strong id="sillasDispLabel"><?php echo (int) $this->sillasDisponibles; ?></strong> sillas disponibles
+                  </p>
+                  <label for="cantidadSillas" class="rv-sillas-label">¿Cuántas sillas deseas?</label>
+                  <input type="number" id="cantidadSillas" class="form-control rv-sillas-input"
+                    min="1" max="<?php echo max(1, $maxSillas); ?>" value="1"
+                    <?php echo $maxSillas < 1 ? 'disabled' : ''; ?>>
+                  <div class="form-text rv-sillas-hint">
+                    Todas las sillas de la compra deben pertenecer al mismo ambiente. Máximo <?php echo max(0, $maxSillas); ?>.
+                  </div>
+                </div>
+              </div>
+            <?php endif; ?>
 
             <input type="hidden" name="cantidad_personas" id="cantidadPersonas" required>
             <input type="hidden" name="mesasSeleccionadas" id="mesasSeleccionadasHidden">
+            <input type="hidden" name="tipo_seleccion" id="tipoSeleccionHidden" value="mesa">
 
             <div class="form-text text-center mt-2 d-none">
               Cupo disponible: <strong><?php echo $restante; ?></strong> |
@@ -292,18 +329,20 @@
       });
     <?php endif; ?>
 
+    const haySillas = <?= (((int) ($this->sillasDisponibles ?? 0)) > 0) ? 'true' : 'false' ?>;
     const cards = document.querySelectorAll('.card-capacidad[data-soldout="0"]');
-    if (cards.length === 0) {
+    if (cards.length === 0 && !haySillas) {
       document.getElementById('btnSubmit').disabled = true;
       Swal.fire({
         icon: 'warning',
         title: 'Sin disponibilidad',
-        text: 'No hay mesas disponibles.',
+        text: 'No hay mesas ni sillas disponibles.',
         confirmButtonText: 'Aceptar',
         confirmButtonColor: '#3085d6',
       });
     }
     const inputHidden = document.getElementById('cantidadPersonas');
+    const tipoHidden = document.getElementById('tipoSeleccionHidden');
     const maxEvento = <?= $this->maxInvitados ?>;
     const totalAceptadas = <?= (int) $this->totalAceptadas ?>;
     const totalPendientes = <?= (int) $this->totalPendientes ?>;
@@ -311,11 +350,13 @@
     const restanteGlobal = Math.max(0, maxGlobal - (totalAceptadas + totalPendientes));
     const limiteReal = Math.min(restanteGlobal, maxEvento);
     const maxInvitados = limiteReal;
-    if (maxInvitados < 2) {
+    // Con sillas se puede comprar 1 sola; solo se bloquea sin cupo alguno.
+    if (maxInvitados < 1) {
       document.getElementById('btnSubmit').disabled = true;
     }
 
     let seleccionadas = [];
+    let modoSeleccion = 'mesa';
 
     function setCookie (nombre, valor, dias) {
       const d = new Date();
@@ -354,6 +395,62 @@
       });
     });
 
+    // ---- Modo Sillas individuales ----
+    const btnsModo = document.querySelectorAll('.btn-modo-seleccion');
+    const panelMesas = document.getElementById('panelMesas');
+    const panelSillas = document.getElementById('panelSillas');
+    const inputSillas = document.getElementById('cantidadSillas');
+    const subtitulo = document.getElementById('rvSubtitle');
+
+    function limpiarSeleccionMesas() {
+      cards.forEach(c => {
+        c.classList.remove('selected');
+        c.style.border = '1px solid #e0e0e0';
+      });
+    }
+
+    function actualizarSillas() {
+      if (!inputSillas) return;
+      let n = parseInt(inputSillas.value, 10) || 0;
+      const maxN = parseInt(inputSillas.getAttribute('max'), 10) || 0;
+      if (n > maxN) { n = maxN; inputSillas.value = maxN; }
+      if (n < 1) { n = 0; }
+      seleccionadas = [];
+      for (let i = 0; i < n; i++) seleccionadas.push(1);
+      inputHidden.value = n; // total_personas = número de sillas
+      setCookie("mesas_seleccionadas", seleccionadas, 1);
+    }
+    if (inputSillas) inputSillas.addEventListener('input', actualizarSillas);
+
+    btnsModo.forEach(b => b.addEventListener('click', function () {
+      btnsModo.forEach(x => x.classList.remove('active'));
+      this.classList.add('active');
+      modoSeleccion = this.dataset.modo;
+      tipoHidden.value = modoSeleccion;
+      setCookie("tipo_seleccion_mesa", modoSeleccion, 1);
+      // Reiniciar selección al cambiar de modo
+      seleccionadas = [];
+      inputHidden.value = 0;
+      limpiarSeleccionMesas();
+
+      if (modoSeleccion === 'silla') {
+        if (panelMesas) panelMesas.style.display = 'none';
+        if (panelSillas) panelSillas.style.display = 'block';
+        if (subtitulo) subtitulo.textContent = 'Indica cuántas sillas deseas comprar';
+        actualizarSillas();
+      } else {
+        if (panelMesas) panelMesas.style.display = 'block';
+        if (panelSillas) panelSillas.style.display = 'none';
+        if (subtitulo) subtitulo.textContent = 'Selecciona el tamaño de mesa que necesitas';
+      }
+    }));
+
+    // Si no hay mesas pero sí sillas, arrancar directamente en modo sillas
+    if (cards.length === 0 && haySillas) {
+      const sillaBtn = document.querySelector('.btn-modo-seleccion[data-modo="silla"]');
+      if (sillaBtn) sillaBtn.click();
+    }
+
     document.getElementById("formCantidadPersonas").addEventListener("submit", function (e) {
       e.preventDefault();
 
@@ -366,7 +463,9 @@
         Swal.fire({
           icon: 'warning',
           title: 'Seleccione una opción',
-          text: 'Debe elegir al menos una mesa antes de continuar.'
+          text: modoSeleccion === 'silla'
+            ? 'Debe indicar al menos una silla antes de continuar.'
+            : 'Debe elegir al menos una mesa antes de continuar.'
         });
         return;
       }
@@ -374,6 +473,13 @@
       btn.classList.add("d-none");
       loading.classList.remove("d-none");
       document.getElementById('mesasSeleccionadasHidden').value = JSON.stringify(seleccionadas);
+
+      // Modo sillas: la cantidad ya está acotada por el máximo disponible.
+      // La disponibilidad real por ambiente se valida en el servidor (paso 2 y 3).
+      if (modoSeleccion === 'silla') {
+        form.submit();
+        return;
+      }
 
       fetch("/page/evento/disponiblesmesas", {
         method: "POST",
@@ -489,6 +595,59 @@
   /* ============================================================
    RESERVAR — Step 1  ·  Dark glass theme
   ============================================================ */
+
+  /* Toggle de modo: mesa completa vs sillas individuales */
+  .rv-mode-toggle {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 0 0 20px;
+    flex-wrap: wrap;
+  }
+  .btn-modo-seleccion {
+    background: rgba(255, 255, 255, 0.06);
+    color: #eee;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 9px 20px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s ease;
+  }
+  .btn-modo-seleccion:hover {
+    border-color: #fff;
+  }
+  .btn-modo-seleccion.active {
+    background: #fff;
+    color: #111;
+    border-color: #fff;
+  }
+  .rv-sillas-box {
+    padding: 24px 16px;
+  }
+  .rv-sillas-avail {
+    font-size: 1rem;
+    margin-bottom: 14px;
+    color: #eee;
+  }
+  .rv-sillas-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #eee;
+  }
+  .rv-sillas-input {
+    max-width: 160px;
+    margin: 0 auto;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+  .rv-sillas-hint {
+    margin-top: 10px;
+    opacity: .8;
+  }
 
   /* Fill the viewport between fixed header (60px) and fixed footer (30px) */
   .contenedor-general {

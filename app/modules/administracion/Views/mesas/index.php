@@ -40,6 +40,16 @@
 					</label>
 				</div> -->
 				<div class="col-2">
+					<label>Tipo</label>
+					<label class="input-group">
+						<select class="form-select" name="mesa_tipo">
+							<option value="">Todas</option>
+							<option value="mesa" <?php if ($this->getObjectVariable($this->filters, 'mesa_tipo') == 'mesa') { echo "selected"; } ?>>Mesa</option>
+							<option value="silla" <?php if ($this->getObjectVariable($this->filters, 'mesa_tipo') == 'silla') { echo "selected"; } ?>>Silla</option>
+						</select>
+					</label>
+				</div>
+				<div class="col-2">
 					<label>Capacidad</label>
 					<label class="input-group">
 						<!-- <div class="input-group-prepend">
@@ -168,6 +178,7 @@
 						<td>Ambiente</td>
 						<td>Código</td>
 						<td>Nombre</td>
+						<td>Tipo</td>
 						<td>Capacidad</td>
 						<td>¿Mesa activa?</td>
 						<td>Estado</td>
@@ -183,6 +194,7 @@
 							<td><?= $this->list_mesa_ambiente[$content->mesa_ambiente]; ?></td>
 							<td><?= $content->mesa_codigo; ?></td>
 							<td><?= $content->mesa_nombre; ?></td>
+							<td><?= $content->mesa_tipo === 'silla' ? '<span class="badge bg-info">Silla</span>' : '<span class="badge bg-secondary">Mesa</span>'; ?></td>
 							<td><?= $content->mesa_capacidad; ?></td>
 							<td><?= $content->mesa_activa == 1 ? 'Activo' : 'Inactivo'; ?></td>
 							<td>

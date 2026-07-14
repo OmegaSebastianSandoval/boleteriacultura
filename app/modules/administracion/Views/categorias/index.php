@@ -118,6 +118,9 @@
 						<td>Precio socio hijo</td>
 						<td>Precio invitado</td>
 						<!-- <td>Precio invitado socio</td> -->
+						<td>Precio silla socio</td>
+						<td>Precio silla socio hijo</td>
+						<td>Precio silla invitado</td>
 						<!-- <td width="100">Orden</td> -->
 						<td width="100"></td>
 					</tr>
@@ -132,6 +135,9 @@
 							<td><?= $content->categoria_precio_socio_hijo > 0 ? number_format($content->categoria_precio_socio_hijo, 0) : ''; ?></td>
 							<td><?= $content->categoria_precio_invitado > 0 ? number_format($content->categoria_precio_invitado, 0) : ''; ?></td>
 							<!-- <td><?= $content->categoria_precio_invitado_socio; ?></td> -->
+							<td><?= $content->categoria_precio_silla_socio > 0 ? number_format($content->categoria_precio_silla_socio, 0) : ''; ?></td>
+							<td><?= $content->categoria_precio_silla_socio_hijo > 0 ? number_format($content->categoria_precio_silla_socio_hijo, 0) : ''; ?></td>
+							<td><?= $content->categoria_precio_silla_invitado > 0 ? number_format($content->categoria_precio_silla_invitado, 0) : ''; ?></td>
 							<!-- <td>
 							<input type="hidden" id="<?= $id; ?>" value="<?= $content->orden; ?>"></input>
 							<button class="up_table btn btn-primary btn-sm"><i class="fas fa-angle-up"></i></button>

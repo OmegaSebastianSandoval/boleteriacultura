@@ -117,6 +117,20 @@
 							</label>
 							<div class="help-block with-errors"></div>
 						</div>
+						<div class="col-4 form-group d-grid">
+							<label class="control-label">Menú alimenticio (Si, No)</label>
+							<input type="checkbox" name="evento_menu_habilitado" id="evento_menu_habilitado" value="1" class="form-control switch-form " <?php if ($this->getObjectVariable($this->content, 'evento_menu_habilitado') == 1 || !$this->content->evento_id) {
+																																																						echo "checked";
+																																																					} ?>></input>
+							<div class="help-block with-errors"></div>
+						</div>
+						<div class="col-4 form-group d-grid">
+							<label class="control-label">Permitir invitados no asociados (Si, No)</label>
+							<input type="checkbox" name="evento_invitados_permitidos" id="evento_invitados_permitidos" value="1" class="form-control switch-form " <?php if ($this->getObjectVariable($this->content, 'evento_invitados_permitidos') == 1 || !$this->content->evento_id) {
+																																																						echo "checked";
+																																																					} ?>></input>
+							<div class="help-block with-errors"></div>
+						</div>
 						<div class="col-md-12 form-group d-none">
 							<label for="evento_descripcion" class="form-label">Descripción evento</label>
 							<textarea name="evento_descripcion" id="evento_descripcion" class="form-control tinyeditor"

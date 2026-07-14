@@ -890,9 +890,10 @@ class Administracion_reservasController extends Administracion_mainController
         $reserva->categoria = $categoria_principal;
 
         // Calcular precios individuales y total
+        $esModoSilla = !empty($reserva->mesa) && ($reserva->mesa->mesa_tipo === 'silla');
         if ($categoria_principal && !empty($reserva->invitados)) {
           foreach ($reserva->invitados as $invitado) {
-            $invitado->precio_boleta = $this->calcularPrecioBoleta($invitado, $categoria_principal);
+            $invitado->precio_boleta = $this->calcularPrecioBoleta($invitado, $categoria_principal, $esModoSilla);
           }
         }
       } catch (Exception $e) {
@@ -998,12 +999,35 @@ class Administracion_reservasController extends Administracion_mainController
    * Calcula el precio de una boleta según el tipo de invitado y categoría
    * @param object $invitado Objeto del invitado
    * @param object $categoria Objeto de la categoría
+   * @param bool $esSilla true si la reserva es de sillas individuales (usa las tarifas
+   *   categoria_precio_silla_* en vez de las de mesa). Ver el mismo esquema en
+   *   eventoController::resumenAction()/respuestaController::indexAction().
    * @return float Precio calculado
    */
-  public function calcularPrecioBoleta($invitado, $categoria)
+  public function calcularPrecioBoleta($invitado, $categoria, $esSilla = false)
   {
     if (!$categoria) {
       return 0;
+    }
+
+    if ($esSilla) {
+      // Si el estado del invitado es 'P' (invitado pendiente), usar precio de invitado
+      if ($invitado->invitadoReserva_estado_invitado == 'P') {
+        return floatval($categoria->categoria_precio_silla_invitado ?? 0);
+      }
+      // Si es de tipo 'S' (Socio) o 'A' (Asociado), usar precio de socio
+      if ($invitado->invitado_tipo == 'S' || $invitado->invitado_tipo == 'A') {
+        if ($invitado->invitadoReserva_beneficiario_hijo == 1 && $invitado->invitadoReserva_beneficiario_cupo == 1) {
+          return floatval($categoria->categoria_precio_silla_socio_hijo ?? 0);
+        }
+        return floatval($categoria->categoria_precio_silla_socio ?? 0);
+      }
+      // Si es tipo 'H' (Hijo), usar precio de hijo de socio
+      if ($invitado->invitado_tipo == 'H') {
+        return floatval($categoria->categoria_precio_silla_socio_hijo ?? 0);
+      }
+      // Sin un precio general de silla; usar la tarifa de invitado como base por defecto
+      return floatval($categoria->categoria_precio_silla_invitado ?? 0);
     }
 
     // Si el estado del invitado es 'P' (invitado pendiente), usar precio de invitado
@@ -1529,6 +1553,15 @@ class Administracion_reservasController extends Administracion_mainController
         $categoria = $categoriasModel->getById($ambiente->ambiente_categoria);
       }
 
+      // Si el elemento reservado es una silla, usar las tarifas de silla de la
+      // categoría (categoria_precio_silla_*), no las de mesa. Mismo esquema que
+      // eventoController::resumenAction()/respuestaController::indexAction().
+      $esModoSilla = $mesa->mesa_tipo === 'silla';
+      // Override manual: precio propio de esta silla concreta, si el admin lo asignó.
+      $precioSillaOverride = ($esModoSilla && $mesa->mesa_precio !== null && $mesa->mesa_precio !== '')
+        ? (float) $mesa->mesa_precio
+        : null;
+
       // Calcular el total a pagar
       $totalPagar = 0;
       $beneficiariosParaPrecio = [];
@@ -1537,15 +1570,25 @@ class Administracion_reservasController extends Administracion_mainController
         $esSocio = ($beneficiario['documento'] === $reservaData['socio']['SBE_CODI']);
         $precio = 0;
 
-        if ($categoria) {
+        if ($precioSillaOverride !== null) {
+          $precio = $precioSillaOverride;
+        } elseif ($categoria) {
           $esMenor25 = isset($beneficiario['menor25']) && $beneficiario['menor25'];
           $esHijo = isset($beneficiario['hijo']) && $beneficiario['hijo'];
 
           // Calcular precio según tipo
-          if ($esMenor25 && $esHijo) {
-            $precio = floatval($categoria->categoria_precio_socio_hijo ?? 0);
+          if ($esModoSilla) {
+            if ($esMenor25 && $esHijo) {
+              $precio = floatval($categoria->categoria_precio_silla_socio_hijo ?? 0);
+            } else {
+              $precio = floatval($categoria->categoria_precio_silla_socio ?? 0);
+            }
           } else {
-            $precio = floatval($categoria->categoria_precio_socio ?? 0);
+            if ($esMenor25 && $esHijo) {
+              $precio = floatval($categoria->categoria_precio_socio_hijo ?? 0);
+            } else {
+              $precio = floatval($categoria->categoria_precio_socio ?? 0);
+            }
           }
         }
 
@@ -1554,9 +1597,15 @@ class Administracion_reservasController extends Administracion_mainController
       }
 
       // Agregar precio de invitados no asociados
-      if ($categoria && $reservaData['cantidad_no_asociados'] > 0) {
-        $precioInvitado = floatval($categoria->categoria_precio_invitado ?? 0);
-        $totalPagar += ($precioInvitado * $reservaData['cantidad_no_asociados']);
+      if ($reservaData['cantidad_no_asociados'] > 0) {
+        if ($precioSillaOverride !== null) {
+          $totalPagar += ($precioSillaOverride * $reservaData['cantidad_no_asociados']);
+        } elseif ($categoria) {
+          $precioInvitado = $esModoSilla
+            ? floatval($categoria->categoria_precio_silla_invitado ?? 0)
+            : floatval($categoria->categoria_precio_invitado ?? 0);
+          $totalPagar += ($precioInvitado * $reservaData['cantidad_no_asociados']);
+        }
       }
 
       // Aplicar descuento si existe

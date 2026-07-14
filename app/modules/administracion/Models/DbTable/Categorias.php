@@ -30,7 +30,10 @@ class Administracion_Model_DbTable_Categorias extends Db_Table
 		$categoria_precio_socio_hijo = $data['categoria_precio_socio_hijo'];
 		$categoria_precio_invitado = $data['categoria_precio_invitado'];
 		$categoria_precio_invitado_socio = $data['categoria_precio_invitado_socio'];
-		$query = "INSERT INTO categorias( categoria_nombre, categoria_descripcion, categoria_estado, categoria_precio, categoria_precio_socio, categoria_precio_socio_hijo, categoria_precio_invitado, categoria_precio_invitado_socio) VALUES ( '$categoria_nombre', '$categoria_descripcion', '$categoria_estado', '$categoria_precio', '$categoria_precio_socio', '$categoria_precio_socio_hijo', '$categoria_precio_invitado', '$categoria_precio_invitado_socio')";
+		$categoria_precio_silla_socio = $data['categoria_precio_silla_socio'] ?? '';
+		$categoria_precio_silla_socio_hijo = $data['categoria_precio_silla_socio_hijo'] ?? '';
+		$categoria_precio_silla_invitado = $data['categoria_precio_silla_invitado'] ?? '';
+		$query = "INSERT INTO categorias( categoria_nombre, categoria_descripcion, categoria_estado, categoria_precio, categoria_precio_socio, categoria_precio_socio_hijo, categoria_precio_invitado, categoria_precio_invitado_socio, categoria_precio_silla_socio, categoria_precio_silla_socio_hijo, categoria_precio_silla_invitado) VALUES ( '$categoria_nombre', '$categoria_descripcion', '$categoria_estado', '$categoria_precio', '$categoria_precio_socio', '$categoria_precio_socio_hijo', '$categoria_precio_invitado', '$categoria_precio_invitado_socio', '$categoria_precio_silla_socio', '$categoria_precio_silla_socio_hijo', '$categoria_precio_silla_invitado')";
 		$res = $this->_conn->query($query);
         return mysqli_insert_id($this->_conn->getConnection());
 	}
@@ -42,7 +45,7 @@ class Administracion_Model_DbTable_Categorias extends Db_Table
 	 * @return void
 	 */
 	public function update($data,$id){
-		
+
 		$categoria_nombre = $data['categoria_nombre'];
 		$categoria_descripcion = $data['categoria_descripcion'];
 		$categoria_estado = $data['categoria_estado'];
@@ -51,7 +54,10 @@ class Administracion_Model_DbTable_Categorias extends Db_Table
 		$categoria_precio_socio_hijo = $data['categoria_precio_socio_hijo'];
 		$categoria_precio_invitado = $data['categoria_precio_invitado'];
 		$categoria_precio_invitado_socio = $data['categoria_precio_invitado_socio'];
-		$query = "UPDATE categorias SET  categoria_nombre = '$categoria_nombre', categoria_descripcion = '$categoria_descripcion', categoria_estado = '$categoria_estado', categoria_precio = '$categoria_precio', categoria_precio_socio = '$categoria_precio_socio', categoria_precio_socio_hijo = '$categoria_precio_socio_hijo', categoria_precio_invitado = '$categoria_precio_invitado', categoria_precio_invitado_socio = '$categoria_precio_invitado_socio' WHERE categoria_id = '".$id."'";
+		$categoria_precio_silla_socio = $data['categoria_precio_silla_socio'] ?? '';
+		$categoria_precio_silla_socio_hijo = $data['categoria_precio_silla_socio_hijo'] ?? '';
+		$categoria_precio_silla_invitado = $data['categoria_precio_silla_invitado'] ?? '';
+		$query = "UPDATE categorias SET  categoria_nombre = '$categoria_nombre', categoria_descripcion = '$categoria_descripcion', categoria_estado = '$categoria_estado', categoria_precio = '$categoria_precio', categoria_precio_socio = '$categoria_precio_socio', categoria_precio_socio_hijo = '$categoria_precio_socio_hijo', categoria_precio_invitado = '$categoria_precio_invitado', categoria_precio_invitado_socio = '$categoria_precio_invitado_socio', categoria_precio_silla_socio = '$categoria_precio_silla_socio', categoria_precio_silla_socio_hijo = '$categoria_precio_silla_socio_hijo', categoria_precio_silla_invitado = '$categoria_precio_silla_invitado' WHERE categoria_id = '".$id."'";
 		$res = $this->_conn->query($query);
 	}
 }

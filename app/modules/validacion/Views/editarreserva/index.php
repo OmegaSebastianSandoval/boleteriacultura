@@ -561,6 +561,9 @@ if ($flashMessage) {
       const mesasHtml = reserva.mesa_info.map(mesa =>
         `<span class="mesa-tag">${mesa.mesa_nombre} (${mesa.ambiente_nombre} - ${mesa.piso_nombre})</span>`
       ).join('');
+      const esSillaReserva = reserva.mesa_info.length > 0 && reserva.mesa_info.every(mesa => mesa.mesa_tipo === 'silla');
+      const etiquetaMesas = esSillaReserva ? 'Sillas asignadas' : 'Mesas asignadas';
+      const etiquetaSinMesas = esSillaReserva ? 'Sin sillas asignadas' : 'Sin mesas asignadas';
 
       const statusBadge = reserva.tiene_invitados_incompletos ?
         '<span class="status-badge status-warning"><i class="fas fa-exclamation-triangle me-1"></i>Invitados incompletos</span>' :
@@ -591,8 +594,8 @@ if ($flashMessage) {
             </div>
           </div>
           <div class="mesas-info">
-            <strong>Mesas asignadas:</strong><br>
-            ${mesasHtml || '<span class="text-muted">Sin mesas asignadas</span>'}
+            <strong>${etiquetaMesas}:</strong><br>
+            ${mesasHtml || `<span class="text-muted">${etiquetaSinMesas}</span>`}
           </div>
           <div class="mt-2">
             ${statusBadge}
@@ -854,6 +857,10 @@ if ($flashMessage) {
         `<span class="mesa-tag">${mesa.mesa_nombre} (${mesa.ambiente_nombre} - ${mesa.piso_nombre})</span>`
       ).join('') :
       '<span class="text-muted">Sin mesas asignadas</span>';
+    const esSillaReservaInfo = (reservaInfo.mesa_info && Array.isArray(reservaInfo.mesa_info) && reservaInfo.mesa_info.length > 0)
+      ? reservaInfo.mesa_info.every(mesa => mesa.mesa_tipo === 'silla') : false;
+    const etiquetaMesasInfo = esSillaReservaInfo ? 'Sillas asignadas' : 'Mesas asignadas';
+    const etiquetaSinMesasInfo = esSillaReservaInfo ? 'Sin sillas asignadas' : 'Sin mesas asignadas';
 
     return `
       <div class="card mb-3" style="background: #f8f9fa; border: 1px solid #e9ecef;">
@@ -897,9 +904,9 @@ if ($flashMessage) {
           <div class="mt-3">
             <div class="info-item">
               <i class="fas fa-table text-primary me-2"></i>
-              <strong>Mesas asignadas:</strong><br>
+              <strong>${etiquetaMesasInfo}:</strong><br>
               <div class="mt-2">
-                ${mesasHtml || '<span class="text-muted">Sin mesas asignadas</span>'}
+                ${mesasHtml || `<span class="text-muted">${etiquetaSinMesasInfo}</span>`}
               </div>
             </div>
           </div>

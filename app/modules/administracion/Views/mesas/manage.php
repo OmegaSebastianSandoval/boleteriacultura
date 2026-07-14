@@ -53,6 +53,18 @@
 					<label for="mesa_capacidad" class="control-label">Capacidad</label>
 					<input type="text" value="<?= $this->content->mesa_capacidad; ?>" name="mesa_capacidad" id="mesa_capacidad" class="form-control">
 				</div>
+				<div class="col">
+					<label for="mesa_tipo" class="control-label">Tipo</label>
+					<select class="form-select" name="mesa_tipo" id="mesa_tipo" onchange="document.getElementById('grupo_mesa_precio').style.display = (this.value === 'silla') ? '' : 'none';">
+						<?php $tipoActual = $this->content->mesa_tipo ?: 'mesa'; ?>
+						<option value="mesa" <?= $tipoActual === 'mesa' ? 'selected' : '' ?>>Mesa</option>
+						<option value="silla" <?= $tipoActual === 'silla' ? 'selected' : '' ?>>Silla</option>
+					</select>
+				</div>
+				<div class="col" id="grupo_mesa_precio" style="<?= ($this->content->mesa_tipo ?: 'mesa') === 'silla' ? '' : 'display:none;' ?>">
+					<label for="mesa_precio" class="control-label">Precio (silla)</label>
+					<input type="number" min="0" step="1" value="<?= $this->content->mesa_precio; ?>" name="mesa_precio" id="mesa_precio" class="form-control">
+				</div>
 				<div class="col-auto d-grid">
 					<label class="control-label">Provisión</label>
 					<input type="checkbox" name="mesa_provision" value="0" class="form-control switch-form"
@@ -62,7 +74,6 @@
 		</div>
 
 		<input type="hidden" name="mesa_forma"     value="<?= $this->content->mesa_forma; ?>">
-		<input type="hidden" name="mesa_tipo"      value="<?= $this->content->mesa_tipo ?: 'mesa'; ?>">
 		<input type="hidden" name="mesa_ancho"     value="<?= $this->content->mesa_ancho; ?>">
 		<input type="hidden" name="mesa_alto"      value="<?= $this->content->mesa_alto; ?>">
 		<input type="hidden" name="mesa_rotacion"  value="<?= $this->content->mesa_rotacion; ?>">

@@ -102,6 +102,7 @@ class Validacion_editarreservaController extends Validacion_mainController
         $mesasInfo[] = [
           'mesa_nombre' => $mesa->mesa_nombre,
           'mesa_capacidad' => $mesa->mesa_capacidad,
+          'mesa_tipo' => $mesa->mesa_tipo,
           'ambiente_nombre' => $ambiente ? $ambiente->ambiente_nombre : 'N/A',
           'piso_nombre' => $piso ? $piso->piso_nombre : 'N/A'
         ];

@@ -42,6 +42,10 @@
   $tp = (int)($this->estadisticasGenerales->total_personas ?? 0);
   $ct = (int)($this->estadisticasGenerales->capacidad_total ?? 0);
   $ocupacion = $ct > 0 ? round(($tp / $ct) * 100, 1) : 0;
+  // Las secciones/gráficas de sillas solo se muestran si el evento ya tiene
+  // sillas individuales configuradas, para no ensuciar el dashboard de eventos
+  // que solo venden mesas.
+  $haySillas = (int) ($this->estadisticasGenerales->total_sillas ?? 0) > 0;
   ?>
   
   <div class="d-flex flex-wrap gap-3 justify-content-center content-dashboard">
@@ -115,6 +119,42 @@
             </div>
           </div>
         </div>
+        <!-- Grupo Sillas (solo si el evento ya tiene sillas individuales configuradas) -->
+        <?php if ((int) ($this->estadisticasGenerales->total_sillas ?? 0) > 0): ?>
+          <div class="col-md-3 shadow-sm">
+            <div class="card stats-card h-100">
+              <div class="card-body metric-card">
+                <div class="metric-number"><?php echo number_format($this->estadisticasGenerales->total_sillas); ?></div>
+                <div class="metric-label">Total sillas</div>
+                <hr>
+                <div class="row  g-0 p-0 w-100">
+                  <div class="col-4">
+                    <div class="metric-number" style="font-size:1.2rem;">
+                      <?php echo number_format($this->estadisticasGenerales->sillas_vendidas); ?>
+                    </div>
+                    <div class="metric-label">Vendidas</div>
+                  </div>
+                  <div class="col-4">
+                    <div class="metric-number" style="font-size:1.2rem;">
+                      <?php echo number_format((int) $this->estadisticasGenerales->total_sillas - (int) $this->estadisticasGenerales->sillas_vendidas); ?>
+                    </div>
+                    <div class="metric-label">Disponibles</div>
+                  </div>
+                  <div class="col-4">
+                    <div class="metric-number" style="font-size:1.2rem;">
+                      <?php
+                      $tsRef = (int) ($this->estadisticasGenerales->total_sillas ?? 0);
+                      $svRef = (int) ($this->estadisticasGenerales->sillas_vendidas ?? 0);
+                      echo $tsRef > 0 ? round(($svRef / $tsRef) * 100) : 0;
+                      ?>%
+                    </div>
+                    <div class="metric-label">Ocupación</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
         <!-- Grupo Pagos -->
         <div class="col-md-3 shadow-sm">
           <div class="card stats-card h-100">
@@ -345,8 +385,75 @@
         </div>
       </div>
     </div>
-    
-    
+
+    <?php if ($haySillas): ?>
+      <!-- Gráfica de sillas por piso -->
+      <div class="row mb-3">
+        <div class="col-md-8">
+          <div class="div-dashboard">
+            <h2>
+              <i class="fas fa-chair"></i> Ocupación de sillas por piso
+            </h2>
+            <div class="pading-dashboard">
+              <div class="chart-container">
+                <canvas id="pisosSillasChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="div-dashboard">
+            <h2>
+              <i class="fas fa-area-chart"></i> Capacidad de sillas por piso
+            </h2>
+            <div class="pading-dashboard">
+              <div class="chart-container">
+                <canvas id="capacidadSillasPisosChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de sillas por piso -->
+      <div class="row mb-5">
+        <div class="col-12">
+          <div class="div-dashboard">
+            <h2><i class="fas fa-table"></i> Detalle de sillas por piso</h2>
+            <div class="pading-dashboard">
+              <div class="content-table mb-3">
+                <table class=" table table-striped  table-hover table-administrator text-left">
+                  <thead>
+                    <tr>
+                      <th>Piso</th>
+                      <th>Total Sillas</th>
+                      <th>Sillas Ocupadas</th>
+                      <th>Sillas Disponibles</th>
+                      <th>% Ocupación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($this->pisosData as $piso): ?>
+                      <?php if ((int) $piso->total_sillas === 0) continue; ?>
+                      <tr>
+                        <td><strong><?php echo $piso->piso_nombre; ?></strong></td>
+                        <td><?php echo $piso->total_sillas; ?></td>
+                        <td><span class="badge bg-danger"><?php echo $piso->sillas_ocupadas; ?></span></td>
+                        <td><span class="badge bg-success"><?php echo $piso->sillas_disponibles; ?></span></td>
+                        <td>
+                          <?php echo $piso->total_sillas > 0 ? round(($piso->sillas_ocupadas / $piso->total_sillas) * 100, 1) : 0; ?>%
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <!-- Gráficas de Ambientes -->
     <div class="cfg-section-title">
       <span class="cfg-icon"><i class="fas fa-door-open"></i></span>
@@ -504,6 +611,75 @@
         </div>
       </div>
     </div>
+
+    <?php if ($haySillas): ?>
+      <!-- Gráfica de sillas por ambiente -->
+      <div class="row mb-3">
+        <div class="col-12">
+          <div class="div-dashboard">
+            <h2><i class="fas fa-chair"></i> Ocupación de sillas por ambiente</h2>
+            <div class="pading-dashboard">
+              <div class="chart-container">
+                <canvas id="ambientesSillasChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de sillas por ambiente -->
+      <div class="row mb-5">
+        <div class="col-12">
+          <div class="div-dashboard">
+            <h2><i class="fas fa-table"></i> Detalle de sillas por ambiente</h2>
+            <div class="pading-dashboard">
+              <div class="content-table mb-3">
+                <table class=" table table-striped  table-hover table-administrator text-left">
+                  <thead>
+                    <tr>
+                      <th>Piso</th>
+                      <th>Ambiente</th>
+                      <th>Total Sillas</th>
+                      <th>Ocupadas</th>
+                      <th>Disponibles</th>
+                      <th>% Ocupación</th>
+                      <th>Sillas Libres</th>
+                    </tr>
+                  </thead>
+                  <tbody class="align-middle">
+                    <?php foreach ($this->ambientesData as $ambiente): ?>
+                      <?php if ((int) $ambiente->total_sillas === 0) continue; ?>
+                      <tr>
+                        <td><?php echo $ambiente->piso_nombre; ?></td>
+                        <td><strong><?php echo $ambiente->ambiente_nombre; ?></strong></td>
+                        <td><?php echo $ambiente->total_sillas; ?></td>
+                        <td><span class="badge bg-danger"><?php echo $ambiente->sillas_ocupadas; ?></span></td>
+                        <td><span class="badge bg-success"><?php echo $ambiente->sillas_disponibles; ?></span></td>
+                        <td>
+                          <?php echo $ambiente->total_sillas > 0 ? round(($ambiente->sillas_ocupadas / $ambiente->total_sillas) * 100, 1) : 0; ?>%
+                        </td>
+                        <td>
+                            <a href="#" data-bs-toggle="modal"
+                              data-bs-target="#modalSillasLibres<?php echo $ambiente->ambiente_id; ?>"
+                              style="display:inline-flex;align-items:center;border-radius:6px;overflow:hidden;text-decoration:none;font-size:.78rem;font-weight:600;line-height:1;">
+                              <span style="background:#15803d;color:#fff;padding:5px 8px;">
+                                <i class="fas fa-eye"></i>
+                              </span>
+                              <span style="background:#dcfce7;color:#166534;padding:5px 9px;">
+                                Ver (<?php echo count($ambiente->sillas_libres ?? []); ?>)
+                              </span>
+                            </a>
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <?php endif; ?>
   </div>
 
   <?php if ($this->ambientesData): foreach ($this->ambientesData as $ambiente): ?>
@@ -538,6 +714,38 @@
       </div>
     </div>
   </div>
+
+  <?php if (!empty($ambiente->sillas_libres)): ?>
+  <div class="modal fade" id="modalSillasLibres<?php echo $ambiente->ambiente_id; ?>" tabindex="-1"
+    aria-labelledby="modalSillasLibresLabel<?php echo $ambiente->ambiente_id; ?>" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalSillasLibresLabel<?php echo $ambiente->ambiente_id; ?>">
+            Sillas libres en <?php echo htmlspecialchars($ambiente->ambiente_nombre); ?>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" style="max-height:50vh;overflow-y:auto;">
+          <ul class="list-group">
+            <?php foreach ($ambiente->sillas_libres as $silla): ?>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <?php echo htmlspecialchars($silla['mesa_nombre']); ?>
+                <span class="badge bg-warning text-dark"><?php echo htmlspecialchars($ambiente->piso_nombre); ?></span>
+                <?php if ($silla['mesa_precio'] !== null && $silla['mesa_precio'] !== ''): ?>
+                  <span class="badge bg-primary">$<?php echo number_format((float) $silla['mesa_precio'], 0, ',', '.'); ?></span>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
   <?php endforeach; endif; ?>
 
   <a href="<?php echo $this->route; ?>/reset" class="btn reset-btn me-2">
@@ -685,6 +893,62 @@
     }
   });
 
+  // Gráfica de ocupación de sillas por piso (el canvas solo existe si hay sillas
+  // configuradas, ver $haySillas en el PHP de esta vista)
+  const pisosSillasCanvas = document.getElementById('pisosSillasChart');
+  if (pisosSillasCanvas) {
+    const pisosConSillas = pisosData.filter(p => (p.total_sillas || 0) > 0);
+    new Chart(pisosSillasCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: pisosConSillas.map(p => p.piso_nombre),
+        datasets: [
+          {
+            label: 'Sillas Ocupadas',
+            data: pisosConSillas.map(p => p.sillas_ocupadas),
+            backgroundColor: '#FF6384'
+          },
+          {
+            label: 'Sillas Disponibles',
+            data: pisosConSillas.map(p => p.sillas_disponibles),
+            backgroundColor: '#36A2EB'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // Gráfica de capacidad de sillas por piso
+  const capacidadSillasPisosCanvas = document.getElementById('capacidadSillasPisosChart');
+  if (capacidadSillasPisosCanvas) {
+    const pisosConSillasCap = pisosData.filter(p => (p.total_sillas || 0) > 0);
+    new Chart(capacidadSillasPisosCanvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: pisosConSillasCap.map(p => p.piso_nombre),
+        datasets: [{
+          data: pisosConSillasCap.map(p => p.capacidad_sillas_total),
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+  }
+
   // Gráfica de ambientes
   const ambientesCtx = document.getElementById('ambientesChart').getContext('2d');
   new Chart(ambientesCtx, {
@@ -718,6 +982,40 @@
       }
     }
   });
+
+  // Gráfica de ocupación de sillas por ambiente (el canvas solo existe si hay
+  // sillas configuradas, ver $haySillas en el PHP de esta vista)
+  const ambientesSillasCanvas = document.getElementById('ambientesSillasChart');
+  if (ambientesSillasCanvas) {
+    const ambientesConSillas = ambientesData.filter(a => (a.total_sillas || 0) > 0);
+    new Chart(ambientesSillasCanvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ambientesConSillas.map(a => a.ambiente_nombre + ' (' + a.piso_nombre + ')'),
+        datasets: [
+          {
+            label: 'Sillas Ocupadas',
+            data: ambientesConSillas.map(a => a.sillas_ocupadas),
+            backgroundColor: '#FF6384'
+          },
+          {
+            label: 'Sillas Disponibles',
+            data: ambientesConSillas.map(a => a.sillas_disponibles),
+            backgroundColor: '#36A2EB'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+          x: { stacked: true, beginAtZero: true },
+          y: { stacked: true }
+        }
+      }
+    });
+  }
 
 
   // Gráfica de distribución por edades

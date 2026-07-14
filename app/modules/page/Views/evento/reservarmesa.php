@@ -18,7 +18,7 @@
             <i class="fa-solid fa-chair me-2"></i>
             <span class="step-text">Paso 3 de 5</span>
             <span class="step-divider">•</span>
-            <span class="step-name">Selección de mesa</span>
+            <span class="step-name"><?php echo (($this->tipoSeleccion ?? 'mesa') === 'silla') ? 'Selección de sillas' : 'Selección de mesa'; ?></span>
           </div>
         </div>
         <span class="rm-persons-tag">
@@ -44,21 +44,34 @@
     <!-- ── Contenedor principal oscuro (todo el contenido funcional) ── -->
     <div class="rm-main-card">
 
-      <!-- ─ Wizard tabs ── -->
       <?php
       $mesasSeleccionadas = [];
       if (isset($_COOKIE['mesas_seleccionadas'])) {
         $mesasSeleccionadas = json_decode($_COOKIE['mesas_seleccionadas'], true);
       }
+      $esSilla = (($this->tipoSeleccion ?? 'mesa') === 'silla');
+      $totalSillas = $esSilla ? count($mesasSeleccionadas) : 0;
+      // En modo silla se renderiza UN solo bloque (piso→ambiente→mapa) donde se seleccionan
+      // varias sillas con clics directos sobre el mapa, en vez de una pestaña por silla.
+      $stepsParaRenderizar = $esSilla ? [0 => ($mesasSeleccionadas[0] ?? 1)] : $mesasSeleccionadas;
       ?>
 
-      <?php if (count($mesasSeleccionadas) > 1): ?>
+      <?php if ($esSilla): ?>
+        <div class="alert alert-info rm-silla-hint" style="margin:0 0 14px;font-size:.92rem;">
+          <i class="fa-solid fa-circle-info me-1"></i>
+          Elige un piso y un ambiente, luego haz clic en las sillas que quieras dentro del mapa
+          (<strong id="sillasContadorTop">0</strong> / <?= $totalSillas ?> seleccionadas).
+        </div>
+      <?php endif; ?>
+
+      <!-- ─ Wizard tabs (solo modo mesa; en modo silla hay un único bloque) ── -->
+      <?php if (!$esSilla && count($stepsParaRenderizar) > 1): ?>
         <div class="wizard-box mb-3">
           <div class="wizard-header">
-            <?php foreach ($mesasSeleccionadas as $index => $capacidad): ?>
+            <?php foreach ($stepsParaRenderizar as $index => $capacidad): ?>
               <div class="wizard-step <?php echo $index === 0 ? 'active' : ''; ?>" data-step="<?php echo $index; ?>">
                 <div class="circle"><?php echo $index + 1; ?></div>
-                <span class="step-label"><?php echo htmlspecialchars($capacidad); ?> Personas</span>
+                <span class="step-label"><?php echo htmlspecialchars($capacidad) . ' Personas'; ?></span>
               </div>
             <?php endforeach; ?>
           </div>
@@ -66,15 +79,15 @@
       <?php endif; ?>
 
       <!--  Wizard contents ── -->
-      <?php foreach ($mesasSeleccionadas as $index => $capacidad): ?>
+      <?php foreach ($stepsParaRenderizar as $index => $capacidad): ?>
         <div class="wizard-content <?php echo $index === 0 ? 'active' : ''; ?>" data-content="<?php echo $index; ?>">
           <div class="rm-layout">
 
             <!-- LEFT: selector panel -->
             <aside class="rm-selector-panel sticky-top">
               <div class="rm-panel-header">
-                <span class="rm-panel-label">Selección de mesa</span>
-                <small class="rm-panel-hint">Piso → Ambiente → Mesa</small>
+                <span class="rm-panel-label"><?= $esSilla ? 'Selección de sillas' : 'Selección de mesa' ?></span>
+                <small class="rm-panel-hint"><?= $esSilla ? 'Piso → Ambiente → Clic en las sillas' : 'Piso → Ambiente → Mesa' ?></small>
               </div>
 
               <div class="rm-steps-form">
@@ -90,11 +103,11 @@
                         <?php foreach ($this->pisosPorCapacidad[$index] as $piso): ?>
                           <option value="<?php echo $piso->piso_id; ?>" data-color="<?php echo $piso->piso_color; ?>">
                             <?php echo htmlspecialchars(ucwords(strtolower($piso->piso_nombre))); ?>
-                            (<?php echo $piso->total_mesas; ?> mesas)
+                            (<?php echo $piso->total_mesas; ?> <?php echo $esSilla ? 'sillas' : 'mesas'; ?>)
                           </option>
                         <?php endforeach; ?>
                       <?php else: ?>
-                        <option value="" disabled>Sin pisos para <?php echo $mesasSeleccionadas[$index]; ?> personas
+                        <option value="" disabled><?php echo $esSilla ? 'Sin pisos con sillas disponibles' : 'Sin pisos para ' . $mesasSeleccionadas[$index] . ' personas'; ?>
                         </option>
                       <?php endif; ?>
                     </select>
@@ -121,15 +134,25 @@
                   </div>
                 </div>
 
-                <!-- Step 3: Mesa -->
+                <!-- Step 3: Mesa / Sillas -->
                 <div class="rm-step-item">
                   <div class="rm-step-num">3</div>
                   <div class="rm-step-body">
-                    <label class="rm-step-label-text" for="selectMesa_<?= $index ?>">Seleccione su mesa</label>
-                    <select class="form-select form-select-lg rm-select" id="selectMesa_<?= $index ?>" name="mesa_id"
-                      disabled>
-                      <option value="">— Primero elija un ambiente —</option>
-                    </select>
+                    <?php if ($esSilla): ?>
+                      <label class="rm-step-label-text">Haz clic en las sillas del mapa</label>
+                      <div class="rm-sillas-progress-inline">
+                        <i class="fa-solid fa-chair"></i>
+                        <strong id="sillasContador_<?= $index ?>">0</strong> / <?= $totalSillas ?> sillas seleccionadas
+                      </div>
+                      <div id="sillasListaSeleccion_<?= $index ?>" class="rm-sillas-chips"></div>
+                      <select class="d-none" id="selectMesa_<?= $index ?>" name="mesa_id_unused"></select>
+                    <?php else: ?>
+                      <label class="rm-step-label-text" for="selectMesa_<?= $index ?>">Seleccione su mesa</label>
+                      <select class="form-select form-select-lg rm-select" id="selectMesa_<?= $index ?>" name="mesa_id"
+                        disabled>
+                        <option value="">— Primero elija un ambiente —</option>
+                      </select>
+                    <?php endif; ?>
                     <div class="content-info-ubication">
                       <span id="infoMesa_<?= $index ?>" class="d-block"></span>
                     </div>
@@ -206,30 +229,38 @@
     <!-- ── Footer fijo: info mesa seleccionada + confirmar ── -->
     <div class="rm-footer">
 
-      <?php foreach ($mesasSeleccionadas as $index => $capacidad): ?>
+      <?php foreach ($stepsParaRenderizar as $index => $capacidad): ?>
         <div id="detallesMesa_<?= $index ?>" class="rm-footer-detail" style="display: none;">
           <i class="fa-solid fa-check-circle rm-fd-icon"></i>
           <div class="rm-fd-items">
             <span class="rm-fd-item">
-              <span class="rm-fd-key">Mesa: </span>
+              <span class="rm-fd-key"><?= $esSilla ? 'Sillas: ' : 'Mesa: ' ?></span>
               <span id="detalleMesaNombre_<?= $index ?>" class="rm-fd-val"></span>
             </span>
-            <span class="rm-fd-sep">•</span>
-            <span class="rm-fd-item">
-              <span class="rm-fd-key">Piso: </span>
-              <span id="detallePiso_<?= $index ?>" class="rm-fd-val"></span>
-            </span>
-            <span class="rm-fd-sep">•</span>
-            <span class="rm-fd-item">
-              <span class="rm-fd-key">Ambiente: </span>
-              <span id="detalleAmbiente_<?= $index ?>" class="rm-fd-val"></span>
-            </span>
-            <span class="rm-fd-sep">•</span>
-            <span class="rm-fd-item">
-              <span class="rm-fd-key">Capacidad: </span>
-              <span id="detalleMesaCapacidad_<?= $index ?>" class="rm-fd-val"></span>
-              <span class="rm-fd-unit">pers.</span>
-            </span>
+            <?php if (!$esSilla): ?>
+              <span class="rm-fd-sep">•</span>
+              <span class="rm-fd-item">
+                <span class="rm-fd-key">Piso: </span>
+                <span id="detallePiso_<?= $index ?>" class="rm-fd-val"></span>
+              </span>
+              <span class="rm-fd-sep">•</span>
+              <span class="rm-fd-item">
+                <span class="rm-fd-key">Ambiente: </span>
+                <span id="detalleAmbiente_<?= $index ?>" class="rm-fd-val"></span>
+              </span>
+              <span class="rm-fd-sep">•</span>
+              <span class="rm-fd-item">
+                <span class="rm-fd-key">Capacidad: </span>
+                <span id="detalleMesaCapacidad_<?= $index ?>" class="rm-fd-val"></span>
+                <span class="rm-fd-unit">pers.</span>
+              </span>
+            <?php else: ?>
+              <span style="display:none">
+                <span id="detallePiso_<?= $index ?>"></span>
+                <span id="detalleAmbiente_<?= $index ?>"></span>
+                <span id="detalleMesaCapacidad_<?= $index ?>"></span>
+              </span>
+            <?php endif; ?>
             <span style="display:none">
               <span id="detalleMesaCodigo_<?= $index ?>"></span>
               <span id="detalleCategoria_<?= $index ?>"></span>
@@ -240,7 +271,7 @@
 
       <div class="rm-footer-actions">
         <button type="submit" class="btn btn-primary btn-lg event-btn rm-confirm-btn" id="btnConfirmarMesa" disabled>
-          <i class="fas fa-check-circle me-2"></i>Confirmar Mesa
+          <i class="fas fa-check-circle me-2"></i><?= $esSilla ? 'Confirmar sillas' : 'Confirmar Mesa' ?>
         </button>
         <div id="loadingSnippet" class="d-none rm-footer-loading">
           <div class="spinner-border" role="status"
@@ -257,6 +288,21 @@
 </div>
 
 <script>
+  // Modo de selección de este flujo: 'mesa' (una mesa) o 'silla' (varias sillas mismo ambiente)
+  window.tipoSeleccion = <?= json_encode($this->tipoSeleccion ?? 'mesa'); ?>;
+
+  // Mensajes de error devueltos por el servidor al confirmar
+  <?php $errParam = isset($_GET['error']) ? $_GET['error'] : ''; ?>
+  <?php if ($errParam === 'ambiente_mixto'): ?>
+    document.addEventListener('DOMContentLoaded', function () {
+      Swal.fire({ icon: 'warning', title: 'Mismo ambiente', text: 'Todas las sillas deben pertenecer al mismo ambiente. Por favor selecciónalas de nuevo.' });
+    });
+  <?php elseif ($errParam === 'mesa_no_disponible'): ?>
+    document.addEventListener('DOMContentLoaded', function () {
+      Swal.fire({ icon: 'warning', title: 'No disponible', text: 'Alguna de las opciones seleccionadas ya no está disponible. Intenta nuevamente.' });
+    });
+  <?php endif; ?>
+
   // Lógica para avanzar al siguiente paso (ya estaba)
   document.querySelectorAll('.btn-next').forEach(button => {
     button.addEventListener('click', () => {
@@ -298,6 +344,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     const totalMesas = <?= count($mesasSeleccionadas); ?>;
     const mesasSeleccionadas = <?= json_encode($mesasSeleccionadas); ?>;
+    const tipoSeleccion = window.tipoSeleccion || 'mesa';
     const btnConfirmarMesa = document.getElementById('btnConfirmarMesa');
     let mesasSeleccionadasPorPaso = {};
     const mesaSeleccionadaInput = document.getElementById('mesa_seleccionada');
@@ -446,7 +493,10 @@
       }
     }
 
-    for (let i = 0; i < mesasSeleccionadas.length; i++) {
+    // En modo silla solo hay UN bloque (piso→ambiente→mapa) donde se seleccionan varias
+    // sillas con clics directos; en modo mesa se conserva la lógica original por paso.
+    const totalSteps = tipoSeleccion === 'silla' ? 1 : mesasSeleccionadas.length;
+    for (let i = 0; i < totalSteps; i++) {
       const capacidadRequerida = mesasSeleccionadas[i];
 
       const selectPiso = document.getElementById('selectPiso_' + i);
@@ -463,6 +513,359 @@
       const detalleAmbiente = document.getElementById('detalleAmbiente_' + i);
       const detalleCategoria = document.getElementById('detalleCategoria_' + i);
 
+      if (tipoSeleccion === 'silla') {
+        // ================================================================
+        // MODO SILLAS: selección múltiple con clics directos en un mismo
+        // mapa (piso + ambiente elegidos una sola vez). Nada de pestañas.
+        // ================================================================
+        const totalSillas = totalMesas;
+        let slots = new Array(totalSillas).fill(null); // {id, nombre} | null por cada silla a elegir
+        let detenerConsultaSillas = null;
+
+        function sillasElegidas () {
+          return slots.filter(function (s) { return s !== null; });
+        }
+
+        function actualizarProgresoSillas () {
+          const elegidas = sillasElegidas();
+          const contadorEl = document.getElementById('sillasContador_' + i);
+          if (contadorEl) contadorEl.textContent = elegidas.length;
+          const contadorTop = document.getElementById('sillasContadorTop');
+          if (contadorTop) contadorTop.textContent = elegidas.length;
+
+          const listaEl = document.getElementById('sillasListaSeleccion_' + i);
+          if (listaEl) {
+            listaEl.innerHTML = '';
+            elegidas.forEach(function (s) {
+              const chip = document.createElement('span');
+              chip.className = 'rm-silla-chip';
+              chip.innerHTML = (s.nombre || ('Silla ' + s.id)) + ' <i class="fa-solid fa-xmark"></i>';
+              chip.querySelector('i').addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                deseleccionarSilla(s.id);
+              });
+              listaEl.appendChild(chip);
+            });
+          }
+
+          mesaSeleccionadaInput.value = elegidas.map(function (s) { return s.id; }).join(',');
+          btnConfirmarMesa.disabled = elegidas.length !== totalSillas;
+
+          if (elegidas.length > 0) {
+            detallesMesa.style.display = window.innerWidth <= 767 ? 'block' : 'flex';
+            detalleMesaNombre.textContent = elegidas.map(function (s) { return s.nombre || ('Silla ' + s.id); }).join(', ');
+          } else {
+            detallesMesa.style.display = 'none';
+          }
+        }
+
+        function marcarClaseGrid (mesaId, clase) {
+          const el = document.querySelector('#grid_' + i + " .elemento[data-id='" + mesaId + "']");
+          if (el) {
+            el.classList.remove('libre', 'ocupada', 'seleccionada');
+            el.classList.add(clase);
+            el.style.pointerEvents = (clase === 'ocupada') ? 'none' : '';
+          }
+        }
+
+        function seleccionarSilla (mesaId, nombre) {
+          const libre = slots.indexOf(null);
+          if (libre === -1) {
+            Swal.fire({ icon: 'warning', title: 'Máximo alcanzado', text: 'Ya seleccionaste tus ' + totalSillas + ' sillas. Quita una de la lista para cambiarla.' });
+            return;
+          }
+          fetch('/page/evento/seleccionarmesa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mesa_id: mesaId, accion: 'seleccionar', stepIndex: libre })
+          }).then(function (r) { return r.json(); }).then(function (data) {
+            if (data.success) {
+              slots[libre] = { id: String(mesaId), nombre: nombre };
+              marcarClaseGrid(mesaId, 'seleccionada');
+              actualizarProgresoSillas();
+            } else {
+              Swal.fire({ icon: 'warning', title: 'No disponible', text: data.message || 'Esta silla ya no está disponible.' });
+              marcarClaseGrid(mesaId, 'ocupada');
+            }
+          }).catch(function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo seleccionar la silla.' });
+          });
+        }
+
+        function deseleccionarSilla (mesaId) {
+          const idx = slots.findIndex(function (s) { return s && s.id === String(mesaId); });
+          if (idx === -1) return;
+          fetch('/page/evento/seleccionarmesa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mesa_id: mesaId, accion: 'deseleccionar', stepIndex: idx })
+          }).catch(function () {}).finally(function () {
+            slots[idx] = null;
+            marcarClaseGrid(mesaId, 'libre');
+            actualizarProgresoSillas();
+          });
+        }
+
+        function limpiarTodasLasSillas () {
+          slots.forEach(function (s, idx) {
+            if (s) {
+              fetch('/page/evento/seleccionarmesa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mesa_id: s.id, accion: 'deseleccionar', stepIndex: idx })
+              }).catch(function () {});
+            }
+          });
+          slots = new Array(totalSillas).fill(null);
+          actualizarProgresoSillas();
+        }
+
+        function crearElementoSillaEnGrid (mesa) {
+          if (!mesa || typeof mesa !== 'object' || !mesa.mesa_id) return null;
+          const ancho = parseInt(mesa.mesa_ancho) || 1;
+          const alto = parseInt(mesa.mesa_alto) || 1;
+          const posX = parseInt(mesa.mesa_posicion_x) || parseInt(mesa.mesa_pos_x) || 0;
+          const posY = parseInt(mesa.mesa_posicion_y) || parseInt(mesa.mesa_pos_y) || 0;
+          const rotacion = parseInt(mesa.mesa_rotacion) || 0;
+          const isMobile = window.innerWidth <= 768;
+          const isTablet = window.innerWidth > 768 && window.innerWidth <= 1024;
+          const cellSize = isMobile ? 15 : isTablet ? 35 : 20;
+          const gap = isMobile ? 1 : 2;
+
+          const idx = slots.findIndex(function (s) { return s && s.id === String(mesa.mesa_id); });
+          if (idx !== -1 && mesa.mesa_nombre) {
+            slots[idx].nombre = mesa.mesa_nombre || mesa.mesa_codigo || slots[idx].nombre;
+          }
+          const yaEsMia = idx !== -1;
+          const ocupada = (mesa.mesa_estado == 1 || mesa.mesa_estado === '1') && !yaEsMia && !mesa.es_mia;
+          const estadoClase = (yaEsMia || mesa.es_mia) ? 'seleccionada' : (ocupada ? 'ocupada' : 'libre');
+
+          const elemento = document.createElement('div');
+          elemento.className = `elemento ${mesa.mesa_tipo || 'silla'} ${estadoClase}`;
+          if (estadoClase === 'ocupada') elemento.style.pointerEvents = 'none';
+          elemento.innerText = mesa.mesa_nombre || mesa.mesa_codigo || `Silla ${mesa.mesa_id}`;
+          elemento.style.position = 'absolute';
+          elemento.style.width = (cellSize * ancho + gap * (ancho - 1)) + 'px';
+          elemento.style.height = (cellSize * alto + gap * (alto - 1)) + 'px';
+          elemento.style.left = (posX * (cellSize + gap)) + 'px';
+          elemento.style.top = (posY * (cellSize + gap)) + 'px';
+          elemento.style.transform = `rotate(${rotacion}deg)`;
+          elemento.style.fontSize = isMobile ? '9px' : isTablet ? '10px' : '12px';
+          elemento.dataset.id = mesa.mesa_id;
+
+          elemento.addEventListener('click', function () {
+            if (elemento.classList.contains('ocupada')) {
+              Swal.fire({ icon: 'warning', title: 'Silla no disponible', text: 'Esta silla ya fue tomada por otro usuario. Elige otra.' });
+              return;
+            }
+            const idStr = String(mesa.mesa_id);
+            const yaSeleccionada = slots.some(function (s) { return s && s.id === idStr; });
+            if (yaSeleccionada) {
+              deseleccionarSilla(idStr);
+            } else {
+              seleccionarSilla(idStr, mesa.mesa_nombre || mesa.mesa_codigo || ('Silla ' + mesa.mesa_id));
+            }
+          });
+          return elemento;
+        }
+
+        function mostrarGridSilla (ambiente, sillas, todosElementos) {
+          const grid = document.getElementById('grid_' + i);
+          grid.classList.remove('d-none');
+          grid.innerHTML = '';
+
+          const isMobile = window.innerWidth <= 768;
+          const isTablet = window.innerWidth > 768 && window.innerWidth <= 1024;
+          const cellSize = isMobile ? 15 : isTablet ? 35 : 20;
+          const gap = isMobile ? 1 : 2;
+
+          for (let j = 0; j < Number(ambiente.ambiente_filas) * Number(ambiente.ambiente_columnas); j++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.style.width = cellSize + 'px';
+            cell.style.height = cellSize + 'px';
+            grid.appendChild(cell);
+          }
+          grid.style.gridTemplateColumns = `repeat(${Number(ambiente.ambiente_columnas)}, ${cellSize}px)`;
+          grid.style.gridTemplateRows = `repeat(${Number(ambiente.ambiente_filas)}, ${cellSize}px)`;
+          grid.style.gap = gap + 'px';
+
+          (sillas || []).forEach(function (mesa) {
+            const el = crearElementoSillaEnGrid(mesa);
+            if (el) grid.appendChild(el);
+          });
+
+          (todosElementos || []).forEach(function (el) {
+            if (!el || typeof el !== 'object' || !el.mesa_id) return;
+            const ancho = parseInt(el.mesa_ancho) || 1;
+            const alto = parseInt(el.mesa_alto) || 1;
+            const posX = parseInt(el.mesa_pos_x) || 0;
+            const posY = parseInt(el.mesa_pos_y) || 0;
+            const rotacion = parseInt(el.mesa_rotacion) || 0;
+            const div = document.createElement('div');
+            div.className = `elemento ${el.mesa_tipo} elementonoseleccionable`;
+            div.style.pointerEvents = 'none';
+            div.innerText = el.mesa_nombre || el.mesa_tipo;
+            div.style.position = 'absolute';
+            div.style.width = (cellSize * ancho + gap * (ancho - 1)) + 'px';
+            div.style.height = (cellSize * alto + gap * (alto - 1)) + 'px';
+            div.style.left = (posX * (cellSize + gap)) + 'px';
+            div.style.top = (posY * (cellSize + gap)) + 'px';
+            div.style.transform = `rotate(${rotacion}deg)`;
+            div.style.fontSize = isMobile ? '9px' : isTablet ? '10px' : '12px';
+            div.dataset.id = el.mesa_id;
+            grid.appendChild(div);
+          });
+
+          actualizarProgresoSillas();
+        }
+
+        function actualizarEstadoSillasEnGrid (sillas) {
+          (sillas || []).forEach(function (mesa) {
+            if (!mesa || typeof mesa !== 'object' || !mesa.mesa_id) return;
+            const yaEsMia = slots.some(function (s) { return s && s.id === String(mesa.mesa_id); });
+            if (yaEsMia) return; // el estado local manda para las que ya elegí
+            const mesaDiv = document.querySelector('#grid_' + i + " .elemento[data-id='" + mesa.mesa_id + "']");
+            if (!mesaDiv) return;
+            const ocupada = (mesa.mesa_estado == 1 || mesa.mesa_estado === '1') && !mesa.es_mia;
+            mesaDiv.classList.remove('libre', 'ocupada', 'seleccionada');
+            mesaDiv.classList.add(ocupada ? 'ocupada' : 'libre');
+            mesaDiv.style.pointerEvents = ocupada ? 'none' : '';
+          });
+        }
+
+        selectPiso.addEventListener('change', function () {
+          const pisoId = this.value;
+          selectAmbiente.innerHTML = '<option value="">— Cargando ambientes... </option>';
+          selectAmbiente.disabled = true;
+          btnConfirmarMesa.disabled = true;
+          const _cards = document.getElementById('ambienteCards_' + i);
+          if (_cards) _cards.innerHTML = '<p class="ambiente-placeholder">Cargando ambientes...</p>';
+
+          if (!pisoId) {
+            infoPiso.classList.remove('activoinfo');
+            infoAmbiente.classList.remove('activoinfo');
+            selectAmbiente.innerHTML = '<option value="">— Primero elija un piso —</option>';
+            infoPiso.textContent = '';
+            $("#legend-ambiente").text('');
+            if (_cards) _cards.innerHTML = '<p class="ambiente-placeholder">— Primero elija un piso —</p>';
+            return;
+          }
+
+          const selectedOption = this.options[this.selectedIndex];
+          infoPiso.classList.add('activoinfo');
+          infoAmbiente.classList.add('activoinfo');
+          infoPiso.innerHTML = `<b>Piso seleccionado:</b> ${selectedOption.textContent}`;
+          let titulolimpio = selectedOption.textContent.replace(/\s*\([^)]*\)/g, '').trim();
+          $("#legend-ambiente").text(titulolimpio);
+
+          fetch(`/page/evento/getambientes?piso_id=${pisoId}&capacidad=${capacidadRequerida}&tipo=silla`)
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+              if (data.success && data.data.length > 0) {
+                selectAmbiente.innerHTML = '<option value="">— Seleccione un ambiente —</option>';
+                data.data.forEach(function (ambiente) {
+                  if (!ambiente.total_mesas || parseInt(ambiente.total_mesas) === 0) return;
+                  const option = document.createElement('option');
+                  option.value = ambiente.ambiente_id;
+                  option.textContent = ambiente.ambiente_nombre;
+                  selectAmbiente.appendChild(option);
+                });
+                selectAmbiente.disabled = data.count === 0;
+                renderAmbienteCards(data.data, i);
+                infoAmbiente.textContent = data.count > 0
+                  ? `${data.count} ambiente${data.count !== 1 ? 's' : ''} disponible${data.count !== 1 ? 's' : ''}`
+                  : 'Sin disponibilidad en este piso';
+              } else {
+                selectAmbiente.innerHTML = '<option value="" disabled>No hay ambientes disponibles</option>';
+                infoAmbiente.textContent = 'No hay ambientes disponibles en este piso';
+              }
+            })
+            .catch(function () {
+              selectAmbiente.innerHTML = '<option value="" disabled>Error al cargar ambientes</option>';
+              infoAmbiente.textContent = 'Error al cargar ambientes';
+            });
+        });
+
+        selectAmbiente.addEventListener('change', function () {
+          const ambienteId = this.value;
+
+          if (detenerConsultaSillas) { detenerConsultaSillas(); detenerConsultaSillas = null; }
+
+          const grid = document.getElementById('grid_' + i);
+
+          if (slots.some(function (s) { return s !== null; })) {
+            limpiarTodasLasSillas();
+          }
+
+          if (!ambienteId) {
+            infoAmbiente.classList.remove('activoinfo');
+            grid.classList.add('d-none');
+            grid.innerHTML = '';
+            const _ambCards = document.getElementById('ambienteCards_' + i);
+            if (_ambCards) _ambCards.querySelectorAll('.ambiente-card').forEach(function (c) {
+              c.classList.remove('activo');
+              const inp = c.querySelector('input');
+              if (inp) inp.checked = false;
+            });
+            const pisoTexto = $("#legend-ambiente").text().split(" - ")[0] || '';
+            $("#legend-ambiente").text(pisoTexto);
+            return;
+          }
+
+          const selectedOption = this.options[this.selectedIndex];
+          infoAmbiente.classList.add('activoinfo');
+          infoAmbiente.innerHTML = `<b>Ambiente:</b> ${selectedOption.textContent}`;
+          const pisoTexto = $("#legend-ambiente").text().split(" - ")[0] || '';
+          $("#legend-ambiente").text(`${pisoTexto} - ${selectedOption.textContent}`);
+
+          fetch(`/page/evento/getmesas?ambiente_id=${ambienteId}&capacidad=${capacidadRequerida}&tipo=silla`)
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+              if (data.success && data.ambiente) {
+                mostrarGridSilla(data.ambiente, data.data || [], data.todos_elementos || []);
+                detenerConsultaSillas = (function () {
+                  let intervalo = setInterval(function () {
+                    fetch(`/page/evento/culstamesasdisponibles?ambiente_id=${ambienteId}&capacidad=${capacidadRequerida}&tipo=silla`)
+                      .then(function (res) { return res.json(); })
+                      .then(function (d) {
+                        if (d.success && Array.isArray(d.mesas)) actualizarEstadoSillasEnGrid(d.mesas);
+                      })
+                      .catch(function () {});
+                  }, 3000);
+                  return function () { clearInterval(intervalo); };
+                })();
+                if (window.innerWidth <= 767) {
+                  setTimeout(function () {
+                    const gridEl = document.getElementById('scroll-bottom-bar-grid_' + i);
+                    if (gridEl) gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 150);
+                }
+              } else {
+                grid.classList.add('d-none');
+                grid.innerHTML = '';
+                infoMesa.textContent = 'No hay sillas disponibles en este ambiente';
+              }
+            })
+            .catch(function () {
+              Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las sillas de este ambiente.' });
+            });
+        });
+
+        // Restaurar (best-effort) una selección previa si el usuario vuelve a esta pantalla
+        // con sillas ya elegidas (el nombre real se completa al cargar el grid del ambiente).
+        if (mesaSeleccionadaInput.value) {
+          const previas = mesaSeleccionadaInput.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+          previas.forEach(function (id, idx) {
+            if (idx < totalSillas) slots[idx] = { id: id, nombre: 'Silla ' + id };
+          });
+          actualizarProgresoSillas();
+        }
+
+      } else {
+      // ================================================================
+      // MODO MESA: una sola mesa por compra (comportamiento original)
+      // ================================================================
       function updateDetails (mesaData, index) {
         detalleMesaNombre.textContent = mesaData.mesa_nombre || 'N/A';
         detalleMesaCapacidad.textContent = mesaData.mesa_capacidad || 'N/A';
@@ -512,7 +915,7 @@
         let titulolimpio = selectedOption.textContent.replace(/\s*\([^)]*\)/g, '').trim();
         $("#legend-ambiente").text(titulolimpio);
 
-        fetch(`/page/evento/getambientes?piso_id=${pisoId}&capacidad=${capacidadRequerida}`)
+        fetch(`/page/evento/getambientes?piso_id=${pisoId}&capacidad=${capacidadRequerida}&tipo=${tipoSeleccion}`)
           .then(response => response.json())
           .then(data => {
             if (data.success && data.data.length > 0) {
@@ -589,7 +992,7 @@
         let textolimpio = selectedOption.textContent.replace(/\s*\([^)]*\)/g, '').trim();
         $("#legend-ambiente").text(`${pisoTexto} - ${selectedOption.textContent}`);
 
-        fetch(`/page/evento/getmesas?ambiente_id=${ambienteId}&capacidad=${capacidadRequerida}`)
+        fetch(`/page/evento/getmesas?ambiente_id=${ambienteId}&capacidad=${capacidadRequerida}&tipo=${tipoSeleccion}`)
           .then(response => response.json())
           .then(data => {
             if (data.success && data.data.length > 0) {
@@ -706,7 +1109,7 @@
           if (!grid.classList.contains('d-none')) {
             const ambienteId = selectAmbiente.value;
             if (ambienteId) {
-              fetch(`/page/evento/getmesas?ambiente_id=${ambienteId}&capacidad=${capacidadRequerida}`)
+              fetch(`/page/evento/getmesas?ambiente_id=${ambienteId}&capacidad=${capacidadRequerida}&tipo=${tipoSeleccion}`)
                 .then(response => response.json())
                 .then(data => {
                   if (data.success && data.ambiente) {
@@ -735,7 +1138,7 @@
 
       function iniciarConsultaMesasDisponibles (ambienteId, capacidad, index) {
         let intervalo = setInterval(() => {
-          fetch(`/page/evento/culstamesasdisponibles?ambiente_id=${ambienteId}&capacidad=${capacidad}`)
+          fetch(`/page/evento/culstamesasdisponibles?ambiente_id=${ambienteId}&capacidad=${capacidad}&tipo=${tipoSeleccion}`)
             .then(res => res.json())
             .then(data => {
               if (data.success && Array.isArray(data.mesas)) {
@@ -1023,9 +1426,10 @@
         text = text.toLowerCase();
         return text.charAt(0).toUpperCase() + text.slice(1);
       }
+      } // fin else (modo mesa)
     }
 
-    for (let i = 0; i < mesasSeleccionadas.length; i++) {
+    for (let i = 0; i < totalSteps; i++) {
       const selectPiso = document.getElementById('selectPiso_' + i);
       if (selectPiso && selectPiso.value) {
         selectPiso.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1051,6 +1455,40 @@
   /* ============================================================
      RESERVAR MESA — Paso 3 — Dark glass (cascada seleccionarbeneficiarios)
   ============================================================ */
+
+  /* Modo sillas: progreso + chips de seleccionadas */
+  .rm-sillas-progress-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    color: #eee;
+    margin: 6px 0 10px;
+  }
+  .rm-sillas-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .rm-silla-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.82rem;
+  }
+  .rm-silla-chip i {
+    cursor: pointer;
+    opacity: .7;
+  }
+  .rm-silla-chip i:hover {
+    opacity: 1;
+    color: #ff6b6b;
+  }
 
   .contenedor-general {
     height: calc(100vh - 60px);

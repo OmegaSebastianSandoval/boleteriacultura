@@ -149,8 +149,9 @@
                         <div class="stat-icon-mini bg-info">
                           <i class="fas fa-chair"></i>
                         </div>
+                        <?php $esSillaVal = (($this->mesaInfo->mesa_tipo) && $this->mesaInfo->mesa_tipo === 'silla'); ?>
                         <div class="stat-content-mini">
-                          <div class="stat-label-mini"><?= count($this->mesasConsulta) > 1 ? 'Mesas' : 'Mesa' ?></div>
+                          <div class="stat-label-mini"><?= count($this->mesasConsulta) > 1 ? ($esSillaVal ? 'Sillas' : 'Mesas') : ($esSillaVal ? 'Silla' : 'Mesa') ?></div>
                           <div class="stat-value-mini d-flex justify-content-center">
                             <?php
                             $mesaCodigos = array_map(function ($mesa) {
@@ -208,7 +209,7 @@
                     </div>
                     <div class="col-12">
                       <div class="info-group">
-                        <label>Mesa asignada</label>
+                        <label><?= (($this->mesaInfo->mesa_tipo) && $this->mesaInfo->mesa_tipo === 'silla') ? 'Silla asignada' : 'Mesa asignada' ?></label>
                         <div class="info-value code-value fw-bold">
                           <?= $this->mesaInfo->mesa_nombre ?? 'No disponible' ?>
                         </div>

@@ -18,38 +18,43 @@ class View
     {
         return $this->_data[$name];
     }
+    function __isset($name)
+    {
+        return isset($this->_data[$name]);
+    }
 
     public function getObjectVariable($object, $var)
     {
-        if (isset($object) AND isset($object->$var)) {
+        if (isset($object) and isset($object->$var)) {
             return $object->$var;
         } else {
             return "";
         }
     }
-    public function getRoutPHP($url,$parameter = '')
+    public function getRoutPHP($url, $parameter = '')
     {
-        $rout=APP_PATH.$url;
-        if(isset($rout) && file_exists($rout)){
+        $rout = APP_PATH . $url;
+        if (isset($rout) && file_exists($rout)) {
             ob_start();
             include($rout);
             $content = ob_get_clean();
             return $content;
         }
-        return "" ;
+        return "";
     }
     public function render($filename)
     {
-        if(is_readable($filename)){
+        if (is_readable($filename)) {
             $fileContents = file_get_contents($filename);
-            return eval("?>".$fileContents);
+            return eval ("?>" . $fileContents);
         } else {
             return "";
         }
 
     }
 
-    public function id_youtube($url) {
+    public function id_youtube($url)
+    {
         $patron = '%^ (?:https?://)? (?:www\.)? (?: youtu\.be/ | youtube\.com (?: /embed/ | /v/ | /watch\?v= ) ) ([\w-]{10,12}) $%x';
         $array = preg_match($patron, $url, $parte);
         if (false !== $array) {

@@ -368,6 +368,9 @@ class Administracion_ambientesController extends Administracion_mainController
 		$fechaPartido = $this->_getSanitizedParam("ambiente_fecha_partido");
 		$data['ambiente_fecha_partido'] = $fechaPartido ? str_replace('T', ' ', $fechaPartido) . ':00' : null;
 
+		$precioSilla = $this->_getSanitizedParam("ambiente_precio_silla");
+		$data['ambiente_precio_silla'] = ($precioSilla === '') ? null : $precioSilla;
+
 		return $data;
 	}
 
@@ -591,6 +594,7 @@ class Administracion_ambientesController extends Administracion_mainController
 				$obj->mesa_ancho = isset($obj->mesa_ancho) ? (int) $obj->mesa_ancho : 1;
 				$obj->mesa_alto = isset($obj->mesa_alto) ? (int) $obj->mesa_alto : 1;
 				$obj->mesa_rotacion = isset($obj->mesa_rotacion) ? (int) $obj->mesa_rotacion : 0;
+				$obj->mesa_precio = (isset($obj->mesa_precio) && $obj->mesa_precio !== null && $obj->mesa_precio !== '') ? (float) $obj->mesa_precio : null;
 			}
 			header('Content-Type: application/json');
 			echo json_encode($obj);
@@ -686,7 +690,10 @@ class Administracion_ambientesController extends Administracion_mainController
 			'mesa_pos_x' => $input['mesa_pos_x'] ?? 0,
 			'mesa_pos_y' => $input['mesa_pos_y'] ?? 0,
 			'mesa_activa' => $input['mesa_activa'] ?? 1,
-			'mesa_ambiente' => $ambiente
+			'mesa_ambiente' => $ambiente,
+			// Precio solo aplica a sillas; para otros tipos queda NULL.
+			'mesa_precio' => (($input['mesa_tipo'] ?? 'mesa') === 'silla' && isset($input['mesa_precio']) && $input['mesa_precio'] !== '')
+				? $input['mesa_precio'] : null
 		];
 		$mesaModel->update($data, $mesa_id);
 		$obj = $mesaModel->getById($mesa_id);
@@ -703,6 +710,7 @@ class Administracion_ambientesController extends Administracion_mainController
 			$obj->mesa_ancho = isset($obj->mesa_ancho) ? (int) $obj->mesa_ancho : 1;
 			$obj->mesa_alto = isset($obj->mesa_alto) ? (int) $obj->mesa_alto : 1;
 			$obj->mesa_rotacion = isset($obj->mesa_rotacion) ? (int) $obj->mesa_rotacion : 0;
+			$obj->mesa_precio = (isset($obj->mesa_precio) && $obj->mesa_precio !== null && $obj->mesa_precio !== '') ? (float) $obj->mesa_precio : null;
 		}
 		header('Content-Type: application/json');
 		echo json_encode($obj);
@@ -713,33 +721,39 @@ class Administracion_ambientesController extends Administracion_mainController
 		$this->setLayout('blanco');
 		header('Content-Type: application/json');
 
-		$mesa_id    = (int) $this->_getSanitizedParam('mesa_id');
+		$mesa_id = (int) $this->_getSanitizedParam('mesa_id');
 		$reserva_id = (int) $this->_getSanitizedParam('reserva_id');
-		$mesaModel  = new Administracion_Model_DbTable_Mesas();
+		$mesaModel = new Administracion_Model_DbTable_Mesas();
 
-		if (!$mesa_id) { echo json_encode(['error' => 'ID inválido']); exit; }
+		if (!$mesa_id) {
+			echo json_encode(['error' => 'ID inválido']);
+			exit;
+		}
 
 		$mesaOrigen = $mesaModel->getById($mesa_id);
-		if (!$mesaOrigen) { echo json_encode(['error' => 'Mesa no encontrada']); exit; }
+		if (!$mesaOrigen) {
+			echo json_encode(['error' => 'Mesa no encontrada']);
+			exit;
+		}
 
 		$capacidad = (int) ($mesaOrigen->mesa_capacidad ?? 0);
-		$ambiente  = (int) ($mesaOrigen->mesa_ambiente  ?? 0);
+		$ambiente = (int) ($mesaOrigen->mesa_ambiente ?? 0);
 
 		// Determinar si la reserva está completa (todos los invitados registrados)
-		$total_personas    = 0;
-		$invitados_count   = 0;
-		$completa          = false;
+		$total_personas = 0;
+		$invitados_count = 0;
+		$completa = false;
 
 		if ($reserva_id) {
-			$reservasModel  = new Administracion_Model_DbTable_Reservas();
+			$reservasModel = new Administracion_Model_DbTable_Reservas();
 			$invitadosModel = new Administracion_Model_DbTable_Invitadosreservas();
-			$reserva        = $reservasModel->getById($reserva_id);
+			$reserva = $reservasModel->getById($reserva_id);
 
 			if ($reserva) {
-				$total_personas  = (int) ($reserva->reserva_total_personas ?? 0);
-				$invitados       = $invitadosModel->getList("reserva_id_reserva = '$reserva_id'", "");
+				$total_personas = (int) ($reserva->reserva_total_personas ?? 0);
+				$invitados = $invitadosModel->getList("reserva_id_reserva = '$reserva_id'", "");
 				$invitados_count = count($invitados);
-				$completa        = $total_personas > 0 && $invitados_count >= $total_personas;
+				$completa = $total_personas > 0 && $invitados_count >= $total_personas;
 			}
 		}
 
@@ -747,10 +761,10 @@ class Administracion_ambientesController extends Administracion_mainController
 		// Si incompleta → mesas de igual o menor capacidad (mesa inferior)
 		if ($completa) {
 			$filtroCapacidad = "mesa_capacidad >= '$capacidad'";
-			$orden           = "mesa_capacidad ASC, mesa_nombre ASC";
+			$orden = "mesa_capacidad ASC, mesa_nombre ASC";
 		} else {
 			$filtroCapacidad = "mesa_capacidad <= '$capacidad'";
-			$orden           = "mesa_capacidad DESC, mesa_nombre ASC";
+			$orden = "mesa_capacidad DESC, mesa_nombre ASC";
 		}
 
 		$mesas = $mesaModel->getList(
@@ -760,27 +774,27 @@ class Administracion_ambientesController extends Administracion_mainController
 
 		$result = [];
 		foreach ($mesas as $m) {
-			$cap      = (int) ($m->mesa_capacidad ?? 0);
+			$cap = (int) ($m->mesa_capacidad ?? 0);
 			$result[] = [
-				'mesa_id'        => (int) $m->mesa_id,
-				'mesa_nombre'    => $m->mesa_nombre,
-				'mesa_codigo'    => $m->mesa_codigo,
+				'mesa_id' => (int) $m->mesa_id,
+				'mesa_nombre' => $m->mesa_nombre,
+				'mesa_codigo' => $m->mesa_codigo,
 				'mesa_capacidad' => $cap,
 				'mismo_ambiente' => ((int) $m->mesa_ambiente) === $ambiente,
-				'cap_diff'       => $cap - $capacidad,
+				'cap_diff' => $cap - $capacidad,
 			];
 		}
 
 		echo json_encode([
-			'mesa_origen'       => [
-				'mesa_id'        => (int) $mesaOrigen->mesa_id,
-				'mesa_nombre'    => $mesaOrigen->mesa_nombre,
+			'mesa_origen' => [
+				'mesa_id' => (int) $mesaOrigen->mesa_id,
+				'mesa_nombre' => $mesaOrigen->mesa_nombre,
 				'mesa_capacidad' => $capacidad,
 			],
-			'reserva_info'      => [
-				'total_personas'  => $total_personas,
+			'reserva_info' => [
+				'total_personas' => $total_personas,
 				'invitados_count' => $invitados_count,
-				'completa'        => $completa,
+				'completa' => $completa,
 			],
 			'mesas_disponibles' => $result,
 		]);
@@ -794,72 +808,85 @@ class Administracion_ambientesController extends Administracion_mainController
 
 		$data = json_decode(file_get_contents('php://input'), true);
 		if (!is_array($data) || empty($data['mesa_id']) || empty($data['nueva_capacidad'])) {
-			echo json_encode(['error' => 'Datos inválidos']); exit;
+			echo json_encode(['error' => 'Datos inválidos']);
+			exit;
 		}
 
-		$mesaId         = (int) $data['mesa_id'];
+		$mesaId = (int) $data['mesa_id'];
 		$nuevaCapacidad = (int) $data['nueva_capacidad'];
 
-		$mesaModel       = new Administracion_Model_DbTable_Mesas();
-		$reservasModel   = new Administracion_Model_DbTable_Reservas();
-		$ambienteModel   = new Administracion_Model_DbTable_Ambientes();
+		$mesaModel = new Administracion_Model_DbTable_Mesas();
+		$reservasModel = new Administracion_Model_DbTable_Reservas();
+		$ambienteModel = new Administracion_Model_DbTable_Ambientes();
 		$categoriasModel = new Administracion_Model_DbTable_Categorias();
-		$cuposModel      = new Administracion_Model_DbTable_Reservacuposadicionales();
+		$cuposModel = new Administracion_Model_DbTable_Reservacuposadicionales();
 
 		$mesa = $mesaModel->getById($mesaId);
-		if (!$mesa) { echo json_encode(['error' => 'Mesa no encontrada']); exit; }
+		if (!$mesa) {
+			echo json_encode(['error' => 'Mesa no encontrada']);
+			exit;
+		}
+		if ($mesa->mesa_tipo === 'silla') {
+			// Una silla siempre tiene capacidad 1 por diseño (round-robin de boletas,
+			// etiquetas, etc. asumen esto); "aumentar capacidad" no aplica aquí, sería
+			// vender/asignar otra silla individual.
+			echo json_encode(['error' => 'No se puede aumentar la capacidad de una silla individual.']);
+			exit;
+		}
 
 		$capacidadActual = (int) $mesa->mesa_capacidad;
 		if ($nuevaCapacidad <= $capacidadActual) {
-			echo json_encode(['error' => 'La nueva capacidad debe ser mayor a la actual (' . $capacidadActual . ')']); exit;
+			echo json_encode(['error' => 'La nueva capacidad debe ser mayor a la actual (' . $capacidadActual . ')']);
+			exit;
 		}
 
 		// La mesa debe tener una reserva pagada asociada (estados 2, 3, 11)
 		$reservas = $reservasModel->getList("FIND_IN_SET('$mesaId', reserva_mesa_id) AND reserva_estado IN (2,3,11)", "id DESC");
-		$reserva  = !empty($reservas) ? $reservas[0] : null;
+		$reserva = !empty($reservas) ? $reservas[0] : null;
 		if (!$reserva) {
-			echo json_encode(['error' => 'Esta mesa no tiene una reserva pagada asociada']); exit;
+			echo json_encode(['error' => 'Esta mesa no tiene una reserva pagada asociada']);
+			exit;
 		}
 
-		$ambiente  = $ambienteModel->getById($mesa->mesa_ambiente);
+		$ambiente = $ambienteModel->getById($mesa->mesa_ambiente);
 		$categoria = ($ambiente && $ambiente->ambiente_categoria) ? $categoriasModel->getById($ambiente->ambiente_categoria) : null;
 		$precioUnitario = $categoria ? (float) $categoria->categoria_precio_socio : 0;
 
 		$cuposAdicionales = $nuevaCapacidad - $capacidadActual;
-		$precioTotal      = $cuposAdicionales * $precioUnitario;
+		$precioTotal = $cuposAdicionales * $precioUnitario;
 
 		// Actualizar la capacidad física de la mesa de una vez
 		$mesaModel->editField($mesaId, 'mesa_capacidad', $nuevaCapacidad);
 
 		// Registrar los cupos adicionales como pendientes de pago
 		$cuposId = $cuposModel->insert([
-			'reserva_id'                => $reserva->id,
-			'mesa_id'                   => $mesaId,
-			'cupos_capacidad_anterior'  => $capacidadActual,
-			'cupos_capacidad_nueva'     => $nuevaCapacidad,
-			'cupos_adicionales'         => $cuposAdicionales,
-			'precio_unitario'           => $precioUnitario,
-			'precio_total'              => $precioTotal,
-			'cupos_estado'              => 0,
-			'cupos_fecha_creacion'      => date('Y-m-d H:i:s'),
+			'reserva_id' => $reserva->id,
+			'mesa_id' => $mesaId,
+			'cupos_capacidad_anterior' => $capacidadActual,
+			'cupos_capacidad_nueva' => $nuevaCapacidad,
+			'cupos_adicionales' => $cuposAdicionales,
+			'precio_unitario' => $precioUnitario,
+			'precio_total' => $precioTotal,
+			'cupos_estado' => 0,
+			'cupos_fecha_creacion' => date('Y-m-d H:i:s'),
 		]);
 
 		$logModel = new Administracion_Model_DbTable_Log();
 		$logModel->insert([
 			'log_usuario' => '',
-			'log_tipo'    => 'AUMENTAR CAPACIDAD MESA - CUPOS ADICIONALES',
-			'log_fecha'   => date('Y-m-d H:i:s'),
-			'log_log'     => "Mesa #$mesaId ({$mesa->mesa_nombre}) — Reserva #{$reserva->id}\n"
-			              . "Capacidad: $capacidadActual -> $nuevaCapacidad (+$cuposAdicionales)\n"
-			              . "Precio unitario: $precioUnitario | Precio total: $precioTotal\n"
-			              . "Registro cupos adicionales ID: $cuposId",
+			'log_tipo' => 'AUMENTAR CAPACIDAD MESA - CUPOS ADICIONALES',
+			'log_fecha' => date('Y-m-d H:i:s'),
+			'log_log' => "Mesa #$mesaId ({$mesa->mesa_nombre}) — Reserva #{$reserva->id}\n"
+				. "Capacidad: $capacidadActual -> $nuevaCapacidad (+$cuposAdicionales)\n"
+				. "Precio unitario: $precioUnitario | Precio total: $precioTotal\n"
+				. "Registro cupos adicionales ID: $cuposId",
 		]);
 
 		echo json_encode([
-			'success'           => true,
-			'message'           => 'Capacidad actualizada a ' . $nuevaCapacidad . ' pax. Se generaron ' . $cuposAdicionales . ' cupo(s) adicional(es) pendientes de pago por $' . number_format($precioTotal, 0, ',', '.') . '.',
+			'success' => true,
+			'message' => 'Capacidad actualizada a ' . $nuevaCapacidad . ' pax. Se generaron ' . $cuposAdicionales . ' cupo(s) adicional(es) pendientes de pago por $' . number_format($precioTotal, 0, ',', '.') . '.',
 			'cupos_adicionales' => $cuposAdicionales,
-			'precio_total'      => $precioTotal,
+			'precio_total' => $precioTotal,
 		]);
 		exit;
 	}
@@ -871,57 +898,73 @@ class Administracion_ambientesController extends Administracion_mainController
 
 		$data = json_decode(file_get_contents('php://input'), true);
 		if (!is_array($data) || empty($data['mesa_id_origen']) || empty($data['mesa_id_destino'])) {
-			echo json_encode(['error' => 'Debes seleccionar una mesa de reemplazo']); exit;
+			echo json_encode(['error' => 'Debes seleccionar una mesa de reemplazo']);
+			exit;
 		}
 
-		$origenId      = (int) $data['mesa_id_origen'];
-		$destinoId     = (int) $data['mesa_id_destino'];
-		$mesaModel     = new Administracion_Model_DbTable_Mesas();
+		$origenId = (int) $data['mesa_id_origen'];
+		$destinoId = (int) $data['mesa_id_destino'];
+		$mesaModel = new Administracion_Model_DbTable_Mesas();
 		$reservasModel = new Administracion_Model_DbTable_Reservas();
 
 		if ($origenId === $destinoId) {
-			echo json_encode(['error' => 'La mesa destino debe ser diferente a la origen']); exit;
+			echo json_encode(['error' => 'La mesa destino debe ser diferente a la origen']);
+			exit;
 		}
 
-		$mesaOrigen  = $mesaModel->getById($origenId);
+		$mesaOrigen = $mesaModel->getById($origenId);
 		$mesaDestino = $mesaModel->getById($destinoId);
 
-		if (!$mesaOrigen)  { echo json_encode(['error' => 'Mesa origen no encontrada']);  exit; }
-		if (!$mesaDestino) { echo json_encode(['error' => 'Mesa destino no encontrada']); exit; }
-		if ((int) $mesaOrigen->mesa_estado  !== 1) { echo json_encode(['error' => 'La mesa origen ya está libre']);    exit; }
-		if ((int) $mesaDestino->mesa_estado !== 0) { echo json_encode(['error' => 'La mesa destino ya está ocupada']); exit; }
+		if (!$mesaOrigen) {
+			echo json_encode(['error' => 'Mesa origen no encontrada']);
+			exit;
+		}
+		if (!$mesaDestino) {
+			echo json_encode(['error' => 'Mesa destino no encontrada']);
+			exit;
+		}
+		if ((int) $mesaOrigen->mesa_estado !== 1) {
+			echo json_encode(['error' => 'La mesa origen ya está libre']);
+			exit;
+		}
+		if ((int) $mesaDestino->mesa_estado !== 0) {
+			echo json_encode(['error' => 'La mesa destino ya está ocupada']);
+			exit;
+		}
 
 		// Verificar que la mesa destino no esté en ninguna reserva activa
 		$yaAsignada = $reservasModel->getList("FIND_IN_SET('$destinoId', reserva_mesa_id)", "");
 		if (!empty($yaAsignada)) {
-			echo json_encode(['error' => 'La mesa destino ya está asignada a una reserva']); exit;
+			echo json_encode(['error' => 'La mesa destino ya está asignada a una reserva']);
+			exit;
 		}
 
 		// Capturar estado ANTES para el log
 		$reservas = $reservasModel->getList("FIND_IN_SET('$origenId', reserva_mesa_id)", "");
-		$reserva  = !empty($reservas) ? $reservas[0] : null;
+		$reserva = !empty($reservas) ? $reservas[0] : null;
 
 		$antes = [
-			'mesa_origen'           => ['id' => $origenId,  'nombre' => $mesaOrigen->mesa_nombre,  'estado' => 'Ocupada (1)', 'capacidad' => $mesaOrigen->mesa_capacidad],
-			'mesa_destino'          => ['id' => $destinoId, 'nombre' => $mesaDestino->mesa_nombre, 'estado' => 'Libre (0)',   'capacidad' => $mesaDestino->mesa_capacidad],
-			'reserva_id'            => $reserva ? $reserva->id : null,
-			'reserva_mesas_antes'   => $reserva ? $reserva->reserva_mesa_id : null,
+			'mesa_origen' => ['id' => $origenId, 'nombre' => $mesaOrigen->mesa_nombre, 'estado' => 'Ocupada (1)', 'capacidad' => $mesaOrigen->mesa_capacidad],
+			'mesa_destino' => ['id' => $destinoId, 'nombre' => $mesaDestino->mesa_nombre, 'estado' => 'Libre (0)', 'capacidad' => $mesaDestino->mesa_capacidad],
+			'reserva_id' => $reserva ? $reserva->id : null,
+			'reserva_mesas_antes' => $reserva ? $reserva->reserva_mesa_id : null,
 		];
 
 		// Mover la reserva: quitar origen, agregar destino
 		foreach ($reservas as $r) {
 			$ids = array_filter(
 				array_map('trim', explode(',', $r->reserva_mesa_id ?? '')),
-				function ($m) use ($origenId) { return $m !== '' && (int) $m !== $origenId; }
+				function ($m) use ($origenId) {
+					return $m !== '' && (int) $m !== $origenId; }
 			);
 			$ids[] = (string) $destinoId;
 			$reservasModel->editField($r->id, 'reserva_mesa_id', implode(',', array_values($ids)));
 		}
 
 		// Actualizar estado de ambas mesas
-		$mesaModel->editField($origenId,  'mesa_estado',    0);
-		$mesaModel->editField($origenId,  'mesa_provision', 0);
-		$mesaModel->editField($destinoId, 'mesa_estado',    1);
+		$mesaModel->editField($origenId, 'mesa_estado', 0);
+		$mesaModel->editField($origenId, 'mesa_provision', 0);
+		$mesaModel->editField($destinoId, 'mesa_estado', 1);
 
 		// Actualizar reserva_total_personas al capacity de la nueva mesa y ajustar invitados
 		$invitados_eliminados = 0;
@@ -930,8 +973,8 @@ class Administracion_ambientesController extends Administracion_mainController
 			$reservasModel->editField($reserva->id, 'reserva_total_personas', $nuevaCapacidad);
 
 			// Si la nueva mesa tiene menor capacidad, eliminar invitados excedentes (los de menor ID = últimos agregados al invertir)
-			$invitadosModel  = new Administracion_Model_DbTable_Invitadosreservas();
-			$todosInvitados  = $invitadosModel->getList("reserva_id_reserva = '{$reserva->id}'", "id_invitado ASC");
+			$invitadosModel = new Administracion_Model_DbTable_Invitadosreservas();
+			$todosInvitados = $invitadosModel->getList("reserva_id_reserva = '{$reserva->id}'", "id_invitado ASC");
 			if (count($todosInvitados) > $nuevaCapacidad && $nuevaCapacidad > 0) {
 				$excedentes = array_slice($todosInvitados, $nuevaCapacidad);
 				foreach ($excedentes as $inv) {
@@ -944,21 +987,21 @@ class Administracion_ambientesController extends Administracion_mainController
 		// Estado DESPUÉS para el log
 		$reservaActualizada = $reserva ? $reservasModel->getById($reserva->id) : null;
 		$despues = [
-			'mesa_origen'              => ['id' => $origenId,  'nombre' => $mesaOrigen->mesa_nombre,  'estado' => 'Libre (0)'],
-			'mesa_destino'             => ['id' => $destinoId, 'nombre' => $mesaDestino->mesa_nombre, 'estado' => 'Ocupada (1)', 'capacidad' => $mesaDestino->mesa_capacidad],
-			'reserva_id'               => $reserva ? $reserva->id : null,
-			'reserva_mesas_despues'    => $reservaActualizada ? $reservaActualizada->reserva_mesa_id : null,
+			'mesa_origen' => ['id' => $origenId, 'nombre' => $mesaOrigen->mesa_nombre, 'estado' => 'Libre (0)'],
+			'mesa_destino' => ['id' => $destinoId, 'nombre' => $mesaDestino->mesa_nombre, 'estado' => 'Ocupada (1)', 'capacidad' => $mesaDestino->mesa_capacidad],
+			'reserva_id' => $reserva ? $reserva->id : null,
+			'reserva_mesas_despues' => $reservaActualizada ? $reservaActualizada->reserva_mesa_id : null,
 			'reserva_personas_despues' => $reservaActualizada ? $reservaActualizada->reserva_total_personas : null,
-			'invitados_eliminados'     => $invitados_eliminados,
+			'invitados_eliminados' => $invitados_eliminados,
 		];
 
 		$logModel = new Administracion_Model_DbTable_Log();
 		$logModel->insert([
 			'log_usuario' => '',
-			'log_tipo'    => 'LIBERAR MESA - REASIGNACION',
-			'log_fecha'   => date('Y-m-d H:i:s'),
-			'log_log'     => "ANTES:\n"  . print_r($antes,   true)
-			              . "\nDESPUES:\n" . print_r($despues, true),
+			'log_tipo' => 'LIBERAR MESA - REASIGNACION',
+			'log_fecha' => date('Y-m-d H:i:s'),
+			'log_log' => "ANTES:\n" . print_r($antes, true)
+				. "\nDESPUES:\n" . print_r($despues, true),
 		]);
 
 		$msg = 'Reserva reasignada y mesa liberada correctamente';
@@ -975,12 +1018,12 @@ class Administracion_ambientesController extends Administracion_mainController
 		$this->setLayout('blanco');
 		header('Content-Type: application/json');
 
-		$q             = trim($this->_getSanitizedParam('q') ?? '');
+		$q = trim($this->_getSanitizedParam('q') ?? '');
 		$reservasModel = new Administracion_Model_DbTable_Reservas();
 
 		$filtro = "reserva_estado IN (1, 2, 3, 11)";
 		if ($q !== '') {
-			$q      = addslashes($q);
+			$q = addslashes($q);
 			$filtro .= " AND (reserva_nombre_cliente LIKE '%$q%'"
 				. " OR reserva_apellido_cliente LIKE '%$q%'"
 				. " OR reserva_documento LIKE '%$q%'"
@@ -1000,39 +1043,54 @@ class Administracion_ambientesController extends Administracion_mainController
 
 		$data = json_decode(file_get_contents('php://input'), true);
 		if (!is_array($data) || empty($data['mesa_id']) || empty($data['reserva_id'])) {
-			echo json_encode(['error' => 'Datos inválidos']); exit;
+			echo json_encode(['error' => 'Datos inválidos']);
+			exit;
 		}
 
-		$mesa_id       = (int) $data['mesa_id'];
-		$reserva_id    = (int) $data['reserva_id'];
-		$mesaModel     = new Administracion_Model_DbTable_Mesas();
+		$mesa_id = (int) $data['mesa_id'];
+		$reserva_id = (int) $data['reserva_id'];
+		$mesaModel = new Administracion_Model_DbTable_Mesas();
 		$reservasModel = new Administracion_Model_DbTable_Reservas();
 
 		$mesa = $mesaModel->getById($mesa_id);
-		if (!$mesa) { echo json_encode(['error' => 'Mesa no encontrada']); exit; }
-		if ((int) $mesa->mesa_estado === 1) { echo json_encode(['error' => 'La mesa ya está ocupada']); exit; }
+		if (!$mesa) {
+			echo json_encode(['error' => 'Mesa no encontrada']);
+			exit;
+		}
+		if ((int) $mesa->mesa_estado === 1) {
+			echo json_encode(['error' => 'La mesa ya está ocupada']);
+			exit;
+		}
 
 		$reserva = $reservasModel->getById($reserva_id);
-		if (!$reserva) { echo json_encode(['error' => 'Reserva no encontrada']); exit; }
+		if (!$reserva) {
+			echo json_encode(['error' => 'Reserva no encontrada']);
+			exit;
+		}
 		if (!in_array((string) $reserva->reserva_estado, ['1', '2', '3', '11'])) {
-			echo json_encode(['error' => 'La reserva no está en un estado válido']); exit;
+			echo json_encode(['error' => 'La reserva no está en un estado válido']);
+			exit;
 		}
 
 		// Validar que la mesa no esté ya en otra reserva
 		$yaAsignada = $reservasModel->getList("FIND_IN_SET('$mesa_id', reserva_mesa_id)", "");
-		if (!empty($yaAsignada)) { echo json_encode(['error' => 'La mesa ya está asignada a otra reserva']); exit; }
+		if (!empty($yaAsignada)) {
+			echo json_encode(['error' => 'La mesa ya está asignada a otra reserva']);
+			exit;
+		}
 
 		// Estado ANTES
 		$antes = [
-			'mesa'              => ['id' => $mesa_id, 'nombre' => $mesa->mesa_nombre, 'estado' => 'Libre (0)', 'capacidad' => $mesa->mesa_capacidad],
-			'reserva_id'        => $reserva_id,
+			'mesa' => ['id' => $mesa_id, 'nombre' => $mesa->mesa_nombre, 'estado' => 'Libre (0)', 'capacidad' => $mesa->mesa_capacidad],
+			'reserva_id' => $reserva_id,
 			'reserva_mesas_antes' => $reserva->reserva_mesa_id,
 		];
 
 		// Agregar mesa a la reserva
 		$mesasActuales = array_filter(
 			array_map('trim', explode(',', $reserva->reserva_mesa_id ?? '')),
-			function ($m) { return $m !== ''; }
+			function ($m) {
+				return $m !== ''; }
 		);
 		$mesasActuales[] = (string) $mesa_id;
 		$nuevasMesas = implode(',', array_values($mesasActuales));
@@ -1041,18 +1099,18 @@ class Administracion_ambientesController extends Administracion_mainController
 
 		// Estado DESPUÉS
 		$despues = [
-			'mesa'               => ['id' => $mesa_id, 'nombre' => $mesa->mesa_nombre, 'estado' => 'Ocupada (1)'],
-			'reserva_id'         => $reserva_id,
+			'mesa' => ['id' => $mesa_id, 'nombre' => $mesa->mesa_nombre, 'estado' => 'Ocupada (1)'],
+			'reserva_id' => $reserva_id,
 			'reserva_mesas_despues' => $nuevasMesas,
 		];
 
 		$logModel = new Administracion_Model_DbTable_Log();
 		$logModel->insert([
 			'log_usuario' => '',
-			'log_tipo'    => 'ASIGNAR MESA',
-			'log_fecha'   => date('Y-m-d H:i:s'),
-			'log_log'     => "ANTES:\n"  . print_r($antes,   true)
-			              . "\nDESPUES:\n" . print_r($despues, true),
+			'log_tipo' => 'ASIGNAR MESA',
+			'log_fecha' => date('Y-m-d H:i:s'),
+			'log_log' => "ANTES:\n" . print_r($antes, true)
+				. "\nDESPUES:\n" . print_r($despues, true),
 		]);
 
 		echo json_encode(['success' => true, 'message' => 'Mesa asignada a la reserva #' . $reserva_id]);
@@ -1063,37 +1121,48 @@ class Administracion_ambientesController extends Administracion_mainController
 	{
 		header('Content-Type: application/json');
 		$id = intval($this->_getSanitizedParam('id'));
-		if (!$id) { echo json_encode(['error' => 'ID inválido']); exit; }
-
-		$ambiente = $this->mainModel->getById($id);
-		if (!$ambiente) { echo json_encode(['error' => 'Ambiente no encontrado']); exit; }
-
-		$mesasModel    = new Administracion_Model_DbTable_Mesas();
-		$reservasModel = new Administracion_Model_DbTable_Reservas();
-
-		$mesas         = $mesasModel->getList("mesa_ambiente = '$id' AND mesa_tipo LIKE '%mesa%'", "mesa_nombre ASC");
-		$totalMesas    = count($mesas);
-		$capacidadTotal = 0;
-		$mesasOcupadas = 0; $mesasLibres = 0; $mesasProvisionales = 0;
-		foreach ($mesas as $m) {
-			$capacidadTotal += intval($m->mesa_capacidad ?? 0);
-			if ((int)($m->mesa_estado ?? 0) === 1) $mesasOcupadas++;
-			else $mesasLibres++;
-			// mesa_provision = '0' significa "es provisional" (NULL/vacío = no lo es); no usar empty()
-			// aquí porque la cadena "0" es falsy para empty() y para comparaciones truthy en PHP.
-			if ($m->mesa_provision !== null && $m->mesa_provision !== '') $mesasProvisionales++;
+		if (!$id) {
+			echo json_encode(['error' => 'ID inválido']);
+			exit;
 		}
 
-		$reservasActivas  = 0;
+		$ambiente = $this->mainModel->getById($id);
+		if (!$ambiente) {
+			echo json_encode(['error' => 'Ambiente no encontrado']);
+			exit;
+		}
+
+		$mesasModel = new Administracion_Model_DbTable_Mesas();
+		$reservasModel = new Administracion_Model_DbTable_Reservas();
+
+		$mesas = $mesasModel->getList("mesa_ambiente = '$id' AND mesa_tipo LIKE '%mesa%'", "mesa_nombre ASC");
+		$totalMesas = count($mesas);
+		$capacidadTotal = 0;
+		$mesasOcupadas = 0;
+		$mesasLibres = 0;
+		$mesasProvisionales = 0;
+		foreach ($mesas as $m) {
+			$capacidadTotal += intval($m->mesa_capacidad ?? 0);
+			if ((int) ($m->mesa_estado ?? 0) === 1)
+				$mesasOcupadas++;
+			else
+				$mesasLibres++;
+			// mesa_provision = '0' significa "es provisional" (NULL/vacío = no lo es); no usar empty()
+			// aquí porque la cadena "0" es falsy para empty() y para comparaciones truthy en PHP.
+			if ($m->mesa_provision !== null && $m->mesa_provision !== '')
+				$mesasProvisionales++;
+		}
+
+		$reservasActivas = 0;
 		$proximasReservas = [];
-		$reservasPorMes   = array_fill(0, 12, 0);
-		$totalInvitados   = 0;
+		$reservasPorMes = array_fill(0, 12, 0);
+		$totalInvitados = 0;
 
 		if (!empty($mesas)) {
-			$mesaIds     = array_map(fn($m) => intval($m->mesa_id), $mesas);
-			$findInSets  = implode(' OR ', array_map(fn($mid) => "FIND_IN_SET('$mid', reserva_mesa_id)", $mesaIds));
-			$hoy         = date('Y-m-d');
-			$anio        = date('Y');
+			$mesaIds = array_map(fn($m) => intval($m->mesa_id), $mesas);
+			$findInSets = implode(' OR ', array_map(fn($mid) => "FIND_IN_SET('$mid', reserva_mesa_id)", $mesaIds));
+			$hoy = date('Y-m-d');
+			$anio = date('Y');
 
 			$todasReservas = $reservasModel->getList("($findInSets) AND reserva_estado IN (1,2,3,7,11)", "reserva_fecha DESC");
 			$reservasActivas = count($todasReservas);
@@ -1102,7 +1171,8 @@ class Administracion_ambientesController extends Administracion_mainController
 				$totalInvitados += intval($r->reserva_total_personas ?? 0);
 				if (!empty($r->reserva_fecha) && strpos($r->reserva_fecha, $anio) === 0) {
 					$mes = intval(substr($r->reserva_fecha, 5, 2)) - 1;
-					if ($mes >= 0 && $mes < 12) $reservasPorMes[$mes]++;
+					if ($mes >= 0 && $mes < 12)
+						$reservasPorMes[$mes]++;
 				}
 			}
 
@@ -1113,20 +1183,21 @@ class Administracion_ambientesController extends Administracion_mainController
 		$pisoNombre = '';
 		$pisosModel = new Administracion_Model_DbTable_Pisos();
 		$piso = $pisosModel->getById($ambiente->ambiente_piso ?? 0);
-		if ($piso) $pisoNombre = $piso->piso_nombre;
+		if ($piso)
+			$pisoNombre = $piso->piso_nombre;
 
 		echo json_encode([
-			'ambiente'           => $ambiente,
-			'piso_nombre'        => $pisoNombre,
-			'total_mesas'        => $totalMesas,
-			'capacidad_total'    => $capacidadTotal,
-			'mesas_ocupadas'     => $mesasOcupadas,
-			'mesas_libres'       => $mesasLibres,
-			'mesas_provisionales'=> $mesasProvisionales,
-			'reservas_activas'   => $reservasActivas,
-			'total_invitados'    => $totalInvitados,
-			'proximas_reservas'  => $proximasReservas,
-			'reservas_por_mes'   => $reservasPorMes,
+			'ambiente' => $ambiente,
+			'piso_nombre' => $pisoNombre,
+			'total_mesas' => $totalMesas,
+			'capacidad_total' => $capacidadTotal,
+			'mesas_ocupadas' => $mesasOcupadas,
+			'mesas_libres' => $mesasLibres,
+			'mesas_provisionales' => $mesasProvisionales,
+			'reservas_activas' => $reservasActivas,
+			'total_invitados' => $totalInvitados,
+			'proximas_reservas' => $proximasReservas,
+			'reservas_por_mes' => $reservasPorMes,
 		]);
 		exit;
 	}
@@ -1135,13 +1206,22 @@ class Administracion_ambientesController extends Administracion_mainController
 	{
 		header('Content-Type: application/json');
 		$mesa_id = (int) $this->_getSanitizedParam('mesa_id');
-		$estado  = (int) $this->_getSanitizedParam('estado');
-		if (!$mesa_id) { echo json_encode(['error' => 'ID de mesa inválido']); exit; }
-		if (!in_array($estado, [0, 1])) { echo json_encode(['error' => 'Estado inválido']); exit; }
+		$estado = (int) $this->_getSanitizedParam('estado');
+		if (!$mesa_id) {
+			echo json_encode(['error' => 'ID de mesa inválido']);
+			exit;
+		}
+		if (!in_array($estado, [0, 1])) {
+			echo json_encode(['error' => 'Estado inválido']);
+			exit;
+		}
 
 		$mesaModel = new Administracion_Model_DbTable_Mesas();
 		$mesa = $mesaModel->getById($mesa_id);
-		if (!$mesa) { echo json_encode(['error' => 'Mesa no encontrada']); exit; }
+		if (!$mesa) {
+			echo json_encode(['error' => 'Mesa no encontrada']);
+			exit;
+		}
 
 		$mesaModel->editField($mesa_id, 'mesa_estado', $estado);
 		echo json_encode(['success' => true, 'nuevo_estado' => $estado]);

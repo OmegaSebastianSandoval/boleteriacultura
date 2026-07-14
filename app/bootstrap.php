@@ -68,7 +68,7 @@ if (strpos($_SERVER['HTTP_HOST'], "cenadegala.clubelnogal.com") !== false or str
 define('APPLICATION_ENV', getenv('APPLICATION_ENV') ? getenv('APPLICATION_ENV') : $env);
 
 if (APPLICATION_ENV == 'development') {
-  define('RUTA', "http://localhost:8043");
+  define('RUTA', "https://junior-typological-formlessly.ngrok-free.dev");
   define('URL_BASE', "https://ev.clubelnogal.com/ConsultaAsociadosPruebas");
   // define('URL_BASE', "https://ev.clubelnogal.com/ConsultaAsociadosGala");
   define('URL_BASE_LOGIN', "https://ev.clubelnogal.com/iniciosesionPruebas/querys/loginPassword.php");

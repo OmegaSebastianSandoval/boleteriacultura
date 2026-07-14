@@ -71,6 +71,42 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 		parent::init();
 	}
 
+	/**
+	 * Resuelve la categoría real del ambiente de una reserva (a partir de la primera
+	 * mesa/silla en reserva_mesa_id) y si es una reserva de sillas individuales.
+	 * Reemplaza el categoria_id=4 hardcodeado que había antes en el recálculo de
+	 * reserva_total_pagar, que solo era válido mientras existiera un único ambiente/
+	 * categoría en todo el sistema; con varios ambientes (y ahora sillas con tarifas
+	 * propias) esa suposición ya no es correcta.
+	 * @param object $reserva
+	 * @return array [categoria|null, esModoSilla bool]
+	 */
+	private function resolverCategoriaReserva($reserva)
+	{
+		if (empty($reserva->reserva_mesa_id)) {
+			return array(null, false);
+		}
+		$mesaIds = array_map('trim', explode(',', $reserva->reserva_mesa_id));
+		$primerMesaId = $mesaIds[0] ?? null;
+		if (!$primerMesaId) {
+			return array(null, false);
+		}
+		$mesasModel = new Administracion_Model_DbTable_Mesas();
+		$mesa = $mesasModel->getById($primerMesaId);
+		if (!$mesa) {
+			return array(null, false);
+		}
+		$esModoSilla = $mesa->mesa_tipo === 'silla';
+		$ambientesModel = new Administracion_Model_DbTable_Ambientes();
+		$ambiente = $ambientesModel->getById($mesa->mesa_ambiente);
+		if (!$ambiente || !$ambiente->ambiente_categoria) {
+			return array(null, $esModoSilla);
+		}
+		$categoriasModel = new Administracion_Model_DbTable_Categorias();
+		$categoria = $categoriasModel->getById($ambiente->ambiente_categoria);
+		return array($categoria, $esModoSilla);
+	}
+
 
 	/**
 	 * Recibe la informacion y  muestra un listado de  newinvitados con sus respectivos filtros.
@@ -275,8 +311,7 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 				if ($reserva) {
 					$data["reservaInfo"] = print_r($reserva, true);
 					$invitados = $this->mainModel->getList("reserva_id_reserva = '{$content->reserva_id_reserva}'");
-					$categoriasModel = new Administracion_Model_DbTable_Categorias();
-					$categoria = $categoriasModel->getById(4);
+					list($categoria, $esModoSilla) = $this->resolverCategoriaReserva($reserva);
 
 					if (is_countable($invitados) && count($invitados) >= 1 && $categoria) {
 						$valorAnterior = $reserva->reserva_total_pagar;
@@ -292,10 +327,10 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 								$esHijo = ($invitado->invitadoReserva_beneficiario_hijo) && $invitado->invitadoReserva_beneficiario_hijo == '1';
 
 								if ($esMenor25 && $esHijo) {
-									$precio = $categoria->categoria_precio_socio_hijo;
+									$precio = $esModoSilla ? ($categoria->categoria_precio_silla_socio_hijo ?? 0) : $categoria->categoria_precio_socio_hijo;
 									$tipoCalculoAplicado = 'Socio Hijo Menor 25';
 								} else {
-									$precio = $categoria->categoria_precio_socio;
+									$precio = $esModoSilla ? ($categoria->categoria_precio_silla_socio ?? 0) : $categoria->categoria_precio_socio;
 									$tipoCalculoAplicado = 'Socio Regular';
 								}
 
@@ -305,7 +340,7 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 									$tipoCalculoAplicado .= ' (Co-socio)';
 								}
 							} else { // Invitado
-								$precio = $categoria->categoria_precio_invitado;
+								$precio = $esModoSilla ? ($categoria->categoria_precio_silla_invitado ?? 0) : $categoria->categoria_precio_invitado;
 								$tipoCalculoAplicado = 'Invitado';
 							}
 
@@ -336,7 +371,8 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 								'valor_anterior' => $valorAnterior,
 								'valor_nuevo' => $totalGeneral,
 								'diferencia' => $totalGeneral - $valorAnterior,
-								'categoria_id' => 4,
+								'categoria_id' => $categoria->categoria_id ?? null,
+								'modo_silla' => $esModoSilla,
 								'categoria_precio_socio' => $categoria->categoria_precio_socio ?? 'N/A',
 								'categoria_precio_socio_hijo' => $categoria->categoria_precio_socio_hijo ?? 'N/A',
 								'categoria_precio_invitado' => $categoria->categoria_precio_invitado ?? 'N/A',
@@ -837,8 +873,7 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 		}
 
 		$invitados = $this->mainModel->getList("reserva_id_reserva = '{$reservaId}'");
-		$categoriasModel = new Administracion_Model_DbTable_Categorias();
-		$categoria = $categoriasModel->getById(4);
+		list($categoria, $esModoSilla) = $this->resolverCategoriaReserva($reserva);
 
 		if (is_countable($invitados) && count($invitados) >= 1 && $categoria) {
 			$valorAnterior = $reserva->reserva_total_pagar;
@@ -852,12 +887,12 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 					$esHijo = ($invitado->invitadoReserva_beneficiario_hijo) && $invitado->invitadoReserva_beneficiario_hijo == '1';
 
 					if ($esMenor25 && $esHijo) {
-						$precio = $categoria->categoria_precio_socio_hijo;
+						$precio = $esModoSilla ? ($categoria->categoria_precio_silla_socio_hijo ?? 0) : $categoria->categoria_precio_socio_hijo;
 					} else {
-						$precio = $categoria->categoria_precio_socio;
+						$precio = $esModoSilla ? ($categoria->categoria_precio_silla_socio ?? 0) : $categoria->categoria_precio_socio;
 					}
 				} else { // Invitado
-					$precio = $categoria->categoria_precio_invitado;
+					$precio = $esModoSilla ? ($categoria->categoria_precio_silla_invitado ?? 0) : $categoria->categoria_precio_invitado;
 				}
 
 				$totalGeneral += $precio;

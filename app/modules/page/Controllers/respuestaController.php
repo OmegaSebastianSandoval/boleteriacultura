@@ -97,6 +97,7 @@ class Page_respuestaController extends Page_mainController
                     if ($ambiente) {
                         $mesa->ambiente_nombre = $ambiente->ambiente_nombre;
                         $mesa->ambiente_descuento = $ambiente->ambiente_descuento;
+                        $mesa->ambiente_precio_silla = $ambiente->ambiente_precio_silla ?? null;
                         $piso = $pisosModel->getById($ambiente->ambiente_piso);
                         if ($piso) {
                             $mesa->piso_nombre = $piso->piso_nombre;
@@ -116,8 +117,15 @@ class Page_respuestaController extends Page_mainController
         $this->_view->mesaInfo = $mesaInfo;
         $this->_view->categoria = $categoria;
 
+        // Si la reserva es de sillas individuales, el precio usa las tarifas de silla
+        // de la categoría (categoria_precio_silla_*), no las de mesa. Ver el mismo
+        // esquema en eventoController::resumenAction().
+        $esModoSilla = !empty($mesaInfo) && ($mesaInfo[0]->mesa_tipo === 'silla');
+        $this->_view->esModoSilla = $esModoSilla;
+
         // Calcular precios para cada invitado
         $totalGeneral = 0;
+        $idxSilla = 0;
 
         foreach ($invitados as $invitado) {
             // Verificar si es el socio principal
@@ -152,7 +160,38 @@ class Page_respuestaController extends Page_mainController
             // Determinar el precio según el tipo y categoría (solo si hay mesa/categoría asignada)
             $precio = 0;
 
-            if ($categoria) {
+            if ($esModoSilla) {
+                $silla = isset($mesaInfo[$idxSilla]) ? $mesaInfo[$idxSilla] : null;
+                $idxSilla++;
+
+                if ($silla && $silla->mesa_precio !== null && $silla->mesa_precio !== '') {
+                    // Override manual: esta silla concreta tiene un precio fijo asignado.
+                    $precio = (float) $silla->mesa_precio;
+                } elseif ($categoria) {
+                    if ($invitado->invitado_tipo == '1') {
+                        if ($invitado->es_socio_principal) {
+                            $precio = $categoria->categoria_precio_silla_socio;
+                        } elseif ($esBeneficiarioHijoMenor25) {
+                            $precio = $categoria->categoria_precio_silla_socio_hijo;
+                        } else {
+                            $precio = $categoria->categoria_precio_silla_socio;
+                        }
+                    } else {
+                        $precio = $categoria->categoria_precio_silla_invitado;
+                    }
+                    // La categoría no tiene tarifas de silla configuradas: respaldo al
+                    // precio general del ambiente.
+                    if ($precio === null || $precio === '') {
+                        $precio = ($silla && $silla->ambiente_precio_silla !== null && $silla->ambiente_precio_silla !== '')
+                            ? (float) $silla->ambiente_precio_silla
+                            : 0;
+                    }
+                } elseif ($silla && $silla->ambiente_precio_silla !== null && $silla->ambiente_precio_silla !== '') {
+                    $precio = (float) $silla->ambiente_precio_silla;
+                } else {
+                    $precio = 0;
+                }
+            } elseif ($categoria) {
                 if ($invitado->invitado_tipo == '1') {
                     if ($invitado->es_socio_principal) {
                         $precio = $categoria->categoria_precio_socio;

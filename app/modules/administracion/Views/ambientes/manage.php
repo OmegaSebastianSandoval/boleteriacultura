@@ -385,6 +385,14 @@ if ($this->mesas) {
 						</label>
 						<div class="help-block with-errors">Las reservas cierran automáticamente al arrancar el partido, o antes si no quedan mesas disponibles.</div>
 					</div>
+					<div class="col-2 form-group">
+						<label for="ambiente_precio_silla" class="control-label">Precio silla (por defecto)</label>
+						<label class="input-group">
+							<input type="number" value="<?= ($this->content->ambiente_precio_silla) ? $this->content->ambiente_precio_silla : ''; ?>" name="ambiente_precio_silla"
+								id="ambiente_precio_silla" class="form-control" min="0" step="1">
+						</label>
+						<div class="help-block with-errors">Precio sugerido al crear una silla nueva en este ambiente. No afecta sillas ya creadas.</div>
+					</div>
 					<div class="col-12">
 						<?php if (!empty($_GET['saved'])): ?>
 						<div id="toast-saved" style="display:flex;align-items:center;justify-content:center;gap:9px;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;padding:13px 24px;border-radius:8px;font-size:0.95rem;font-weight:500;margin-top:4px;">
@@ -813,8 +821,9 @@ if ($this->mesas) {
 			<div class="modal-mesa-body">
 				<div class="form-group">
 					<label>Tipo</label>
-					<select id="input_tipo" class="form-control" onchange="actualizarCapacidadDefault()">
+					<select id="input_tipo" class="form-control" onchange="actualizarCapacidadDefault(); actualizarVisibilidadPrecioSilla();">
 						<option value="mesa">Mesa</option>
+						<option value="silla">Silla</option>
 						<option value="puerta">Puerta</option>
 						<option value="barra">Barra</option>
 						<option value="pista">Pista</option>
@@ -860,6 +869,11 @@ if ($this->mesas) {
 						<option value="8">8</option>
 						<option value="10">10</option>
 					</select> -->
+				</div>
+				<div class="form-group" id="grupo_precio_silla" style="display:none;">
+					<label>Precio (silla)</label>
+					<input id="input_precio" type="number" class="form-control" min="0" step="1" placeholder="<?php echo ($this->content->ambiente_precio_silla) ? $this->content->ambiente_precio_silla : ''; ?>">
+					<small class="text-muted">Precio individual de esta silla. Si se deja vacío se guarda sin precio.</small>
 				</div>
 				<div class="form-group">
 					<label>Estado</label>
@@ -1115,6 +1129,10 @@ if ($this->mesas) {
 
 	.mesa {
 		background: #4CAF50;
+	}
+
+	.silla {
+		background: #66BB6A;
 	}
 
 	.barra {
@@ -1407,6 +1425,8 @@ if ($this->mesas) {
 
 		// Rellenar campos si es edición
 		document.getElementById('input_tipo').value = mesa && mesa.mesa_tipo ? mesa.mesa_tipo : 'mesa';
+		document.getElementById('input_precio').value = mesa && mesa.mesa_precio != null && mesa.mesa_precio !== '' ? mesa.mesa_precio : '';
+		actualizarVisibilidadPrecioSilla();
 		document.getElementById('input_codigo').value = mesa && mesa.mesa_codigo ? mesa.mesa_codigo : '';
 		document.getElementById('input_nombre').value = mesa && mesa.mesa_nombre ? mesa.mesa_nombre : 'Nueva';
 		document.getElementById('input_ancho').value = mesa && mesa.mesa_ancho ? mesa.mesa_ancho : 2;
@@ -1670,9 +1690,19 @@ if ($this->mesas) {
 			const capacidadCalculada = ancho * alto;
 			document.getElementById('input_capacidad').value = capacidadCalculada;
 		} else {
+			// Sillas y decoraciones: capacidad 1 (una silla = un asiento).
 			document.getElementById('input_capacidad').value = 1;
 		}
 		// document.getElementById('input_capacidad').value = capacidadDefault;
+	}
+
+	// Muestra el campo de precio solo cuando el elemento es una silla.
+	function actualizarVisibilidadPrecioSilla() {
+		const tipo = document.getElementById('input_tipo').value;
+		const grupo = document.getElementById('grupo_precio_silla');
+		if (grupo) {
+			grupo.style.display = (tipo === 'silla') ? 'block' : 'none';
+		}
 	}
 
 	// Cierra el modal y limpia todos los campos (incluidos los ocultos)
@@ -1681,7 +1711,7 @@ if ($this->mesas) {
 		// Limpiar todos los campos del modal, incluidos los ocultos
 		const ids = [
 			'input_tipo', 'input_codigo', 'input_nombre', 'input_ancho', 'input_alto', 'input_rotacion', 'input_estado',
-			'input_capacidad', 'input_forma', 'input_activa', 'input_orden',
+			'input_capacidad', 'input_precio', 'input_forma', 'input_activa', 'input_orden',
 			'input_imagen_disponible', 'input_imagen_pendiente', 'input_imagen_ocupada',
 			'input_pos_x', 'input_pos_y', 'input_imagen_ubicacion_en_ambiente', 'input_imagen_ubicacion_en_piso'
 		];
@@ -1716,6 +1746,8 @@ if ($this->mesas) {
 			mesa_nombre: nombre,
 			mesa_ancho: ancho,
 			mesa_capacidad: parseInt(document.getElementById('input_capacidad').value) || 0,
+			// Precio solo para sillas; para el resto de tipos se envía null.
+			mesa_precio: tipo === 'silla' ? (parseFloat(document.getElementById('input_precio').value) || null) : null,
 			mesa_alto: alto,
 			mesa_rotacion: rotacion,
 			mesa_estado: estado,
@@ -1752,7 +1784,7 @@ if ($this->mesas) {
 			// Provisional (mesa_provision != null/'') se ve y funciona igual que ocupada
 			// (mesa_estado == 1): mismo color amarillo, solo cambia el término al hacer clic.
 			let estadoClase = '';
-			if (el.mesa_tipo === 'mesa') {
+			if (el.mesa_tipo === 'mesa' || el.mesa_tipo === 'silla') {
 				const esProvisional = el.mesa_provision !== null && el.mesa_provision !== undefined && el.mesa_provision !== '';
 				if (esProvisional || el.mesa_estado == 1) {
 					estadoClase = 'amarillo-estado';

@@ -241,6 +241,10 @@ class Page_eventoController extends Page_mainController
 
     $mesasDisponibles = $mesasModel->getListMesasDisponibles();
     $this->_view->mesasDisponibles = $mesasDisponibles;
+    // Sillas individuales libres (conteo global) para el modo "Sillas" del paso 1.
+    $sillasTotal = $mesasModel->getSillasDisponiblesTotal();
+    $this->_view->sillasDisponibles = ($sillasTotal && isset($sillasTotal[0]) && $sillasTotal[0]->cantidad_sillas !== null)
+      ? (int) $sillasTotal[0]->cantidad_sillas : 0;
     $this->_view->evento = $evento = $eventosModel->getById($id);
     $this->_view->socio = $socio = $this->consultarSocioSession();
     // Log de carga de datos básicos
@@ -477,6 +481,14 @@ class Page_eventoController extends Page_mainController
     if (isset($_COOKIE['mesas_seleccionadas'])) {
       $mesasSeleccionadas = json_decode($_COOKIE['mesas_seleccionadas'], true);
     }
+    // Modo de selección: 'mesa' (una mesa completa) o 'silla' (varias sillas individuales).
+    // En POST viene del formulario; en el GET de re-render se recupera de sesión.
+    $tipoSeleccion = $this->_getSanitizedParam('tipo_seleccion');
+    if ($tipoSeleccion === '' || $tipoSeleccion === null) {
+      $tipoSeleccion = Session::getInstance()->get('tipo_seleccion_mesa') ?: 'mesa';
+    }
+    $this->_view->tipoSeleccion = $tipoSeleccion;
+
     $mesaParaUno = false;
     if (is_countable($mesasSeleccionadas) && count($mesasSeleccionadas) > 0) {
       foreach ($mesasSeleccionadas as $mesaSeleccion) {
@@ -486,7 +498,8 @@ class Page_eventoController extends Page_mainController
       }
     }
 
-    if ($mesaParaUno || $puestosValidacion == 1) {
+    // En modo sillas la cookie es [1,1,...], así que NO aplica el atajo "mesa para 1".
+    if (($mesaParaUno || $puestosValidacion == 1) && $tipoSeleccion !== 'silla') {
       $this->_view->puestos = 1;
     }
 
@@ -585,7 +598,8 @@ class Page_eventoController extends Page_mainController
       ]);
       $capacidadesSeleccionadas = ($_POST['mesasSeleccionadas']) ? json_decode($_POST['mesasSeleccionadas'], true) : [];
 
-      $this->procesarSeleccionBeneficiariosPost($capacidadesSeleccionadas);
+      Session::getInstance()->set('tipo_seleccion_mesa', $tipoSeleccion);
+      $this->procesarSeleccionBeneficiariosPost($capacidadesSeleccionadas, $tipoSeleccion);
       // Log de redirección
       $this->logAuditoria('REDIRECCION_POST_SELECCION', null, [
         'observaciones' => 'Redirigiendo tras procesamiento POST',
@@ -620,7 +634,7 @@ class Page_eventoController extends Page_mainController
     }
   }
 
-  private function procesarSeleccionBeneficiariosPost($capacidadesSeleccionadas)
+  private function procesarSeleccionBeneficiariosPost($capacidadesSeleccionadas, $tipoSeleccion = 'mesa')
   {
     $bloqueosModel = new Administracion_Model_DbTable_Beneficiariosbloqueos();
     $mesasModel = new Administracion_Model_DbTable_Mesas();
@@ -640,6 +654,34 @@ class Page_eventoController extends Page_mainController
     // Si solo es un número, convirtelo en arreglo
     if (!is_array($capacidadesSeleccionadas)) {
       $capacidadesSeleccionadas = [$capacidadesSeleccionadas];
+    }
+
+    // ---- Modo SILLAS individuales ----
+    // Cada silla es una unidad de capacidad 1; $capacidadesSeleccionadas = [1,1,...].
+    // No aplica el pre-bloqueo por "capacidad de mesa"; la disponibilidad concreta por
+    // ambiente se valida al confirmar (updateEstadoAtomico en confirmarmesaAction).
+    if ($tipoSeleccion === 'silla') {
+      $totalSolicitadas = count($capacidadesSeleccionadas);
+      $sillasInfo = $mesasModel->getSillasDisponiblesTotal();
+      $sillasLibres = ($sillasInfo && isset($sillasInfo[0]) && $sillasInfo[0]->cantidad_sillas !== null)
+        ? (int) $sillasInfo[0]->cantidad_sillas : 0;
+      if ($totalSolicitadas < 1 || $totalSolicitadas > $sillasLibres) {
+        header('Location: /page/evento/reservar?error=sin_disponibilidad');
+        exit;
+      }
+      Session::getInstance()->set('tipo_seleccion_mesa', 'silla');
+      Session::getInstance()->set('mesas_solicitadas_count', $totalSolicitadas);
+      Session::getInstance()->set('cantidad_personas_seleccionada', $totalSolicitadas);
+      return;
+    }
+
+    // ---- Modo MESA completa ----
+    // Solo se permite UNA mesa por compra (la UI ya lo fuerza, esto lo blinda en servidor
+    // ante un POST manipulado con varias capacidades).
+    Session::getInstance()->set('tipo_seleccion_mesa', 'mesa');
+    if (count($capacidadesSeleccionadas) !== 1) {
+      header('Location: /page/evento/reservar?error=sin_disponibilidad');
+      exit;
     }
 
     // SEGURIDAD: validar que la CANTIDAD de mesas solicitadas por cada capacidad
@@ -722,6 +764,9 @@ class Page_eventoController extends Page_mainController
     $maxInvitados = intval($evento->evento_invitados_socio) ?? 0;
     $this->_view->maxInvitados = $maxInvitados;
     $this->_view->cantidadSeleccionada = $cantidadPersonas;
+
+    // Si el evento no permite invitados no asociados, todo el cupo debe cubrirse con socios/beneficiarios
+    $this->_view->invitadosPermitidos = (int) ($evento->evento_invitados_permitidos ?? 1) === 1;
 
     $beneficiarios = $this->consultarBeneficiariosSession();
     if (!$beneficiarios) {
@@ -845,6 +890,19 @@ class Page_eventoController extends Page_mainController
         $response = [
           'success' => false,
           'message' => "La cantidad total no coincide con la seleccionada ({$cantidadPersonas} personas)."
+        ];
+        echo json_encode($response);
+        return;
+      }
+
+      // Si el evento no permite invitados no asociados, el cupo completo debe cubrirse con socios/beneficiarios
+      $eventosModel = new Administracion_Model_DbTable_Eventos();
+      $evento = $eventosModel->getById($this->id);
+      $invitadosPermitidos = (int) ($evento->evento_invitados_permitidos ?? 1) === 1;
+      if (!$invitadosPermitidos && $cantidadNoAsociados > 0) {
+        $response = [
+          'success' => false,
+          'message' => "Este evento no permite invitados no asociados. Debe asignar un socio o beneficiario a las {$cantidadPersonas} boletas."
         ];
         echo json_encode($response);
         return;
@@ -1246,11 +1304,26 @@ class Page_eventoController extends Page_mainController
     if (isset($_COOKIE['mesas_seleccionadas'])) {
       $mesasSeleccionadas = json_decode($_COOKIE['mesas_seleccionadas'], true);
     }
-    // Obtener pisos disponibles para la capacidad requerida
-    $this->_view->pisosDisponibles = $mesasModel->getPisosDisponibles($mesasSeleccionadas[0]);
+
+    // Modo de selección ('mesa' | 'silla'). En sillas cada pestaña elige 1 silla (capacidad 1)
+    // y todas deben pertenecer al mismo ambiente.
+    $tipoSeleccion = Session::getInstance()->get('tipo_seleccion_mesa') ?: 'mesa';
+    $this->_view->tipoSeleccion = $tipoSeleccion;
+
     $pisosPorCapacidad = [];
-    foreach ($mesasSeleccionadas as $index => $capacidad) {
-      $pisosPorCapacidad[$index] = $mesasModel->getPisosDisponibles($capacidad);
+    if ($tipoSeleccion === 'silla') {
+      // Para sillas el listado de pisos es el mismo en todas las pestañas.
+      $pisosSillas = $mesasModel->getPisosDisponiblesSillas();
+      $this->_view->pisosDisponibles = $pisosSillas;
+      foreach ($mesasSeleccionadas as $index => $capacidad) {
+        $pisosPorCapacidad[$index] = $pisosSillas;
+      }
+    } else {
+      // Obtener pisos disponibles para la capacidad requerida
+      $this->_view->pisosDisponibles = $mesasModel->getPisosDisponibles($mesasSeleccionadas[0]);
+      foreach ($mesasSeleccionadas as $index => $capacidad) {
+        $pisosPorCapacidad[$index] = $mesasModel->getPisosDisponibles($capacidad);
+      }
     }
     $this->_view->pisosPorCapacidad = $pisosPorCapacidad;
     // Pasar la capacidad para uso en JavaScript
@@ -1270,8 +1343,9 @@ class Page_eventoController extends Page_mainController
 
     $pisoId = $this->_getSanitizedParam('piso_id');
     $capacidad = $this->_getSanitizedParam('capacidad');
+    $tipo = $this->_getSanitizedParam('tipo') ?: 'mesa';
     // echo $pisoId . ' - ' . $capacidad;
-    if ($pisoId <= 0 || $capacidad <= 0) {
+    if ($pisoId <= 0 || ($tipo !== 'silla' && $capacidad <= 0)) {
       echo json_encode([
         'success' => false,
         'message' => 'Parámetros inválidos'
@@ -1281,7 +1355,9 @@ class Page_eventoController extends Page_mainController
 
     try {
       $mesasModel = new Administracion_Model_DbTable_Mesas();
-      $ambientes = $mesasModel->getAmbientesPorPiso($pisoId, $capacidad);
+      $ambientes = ($tipo === 'silla')
+        ? $mesasModel->getAmbientesPorPisoSillas($pisoId)
+        : $mesasModel->getAmbientesPorPiso($pisoId, $capacidad);
 
       echo json_encode([
         'success' => true,
@@ -1308,8 +1384,9 @@ class Page_eventoController extends Page_mainController
 
     $ambienteId = $this->_getSanitizedParam('ambiente_id');
     $capacidad = $this->_getSanitizedParam('capacidad');
+    $tipo = $this->_getSanitizedParam('tipo') ?: 'mesa';
 
-    if ($ambienteId <= 0 || $capacidad <= 0) {
+    if ($ambienteId <= 0 || ($tipo !== 'silla' && $capacidad <= 0)) {
       echo json_encode([
         'success' => false,
         'message' => 'Parámetros inválidos'
@@ -1320,9 +1397,13 @@ class Page_eventoController extends Page_mainController
     try {
       $mesasModel = new Administracion_Model_DbTable_Mesas();
       $ambienteModel = new Administracion_Model_DbTable_Ambientes();
-      $todosElementos = $mesasModel->getTodosElementosPorAmbiente($ambienteId, $capacidad);
-
-      $mesas = $mesasModel->getMesasPorAmbiente($ambienteId, $capacidad);
+      if ($tipo === 'silla') {
+        $todosElementos = $mesasModel->getTodosElementosPorAmbienteSillas($ambienteId);
+        $mesas = $mesasModel->getSillasPorAmbiente($ambienteId);
+      } else {
+        $todosElementos = $mesasModel->getTodosElementosPorAmbiente($ambienteId, $capacidad);
+        $mesas = $mesasModel->getMesasPorAmbiente($ambienteId, $capacidad);
+      }
       $ambiente = $ambienteModel->getById($ambienteId);
 
       $res = [
@@ -1428,6 +1509,17 @@ class Page_eventoController extends Page_mainController
 
         $mesaIds = array_filter(array_map('trim', explode(',', $mesaId)));
 
+        // Modo de selección ('mesa' | 'silla'): en mesa solo se permite 1 elemento por compra.
+        $tipoSeleccion = Session::getInstance()->get('tipo_seleccion_mesa') ?: 'mesa';
+        if ($tipoSeleccion === 'mesa' && count($mesaIds) !== 1) {
+          $this->logAuditoria('MESA_CONFIRMADA_MULTIPLE_NO_PERMITIDA', $reservaId, [
+            'observaciones' => 'En modo mesa solo se permite 1 mesa por compra',
+            'mesas_enviadas' => count($mesaIds)
+          ]);
+          header('Location: /page/evento/reservarmesa?id=' . enc_id($reservaId) . '&error=mesa_no_disponible');
+          exit;
+        }
+
         // SEGURIDAD: no confirmar más mesas de las que se solicitaron legítimamente
         // en la selección de capacidad (evita inflar "stepIndex"/la cookie
         // mesas_seleccionadas para reclamar mesas de más).
@@ -1449,12 +1541,20 @@ class Page_eventoController extends Page_mainController
 
         // Paso 1: validar todas las mesas antes de escribir ninguna
         $capacidadTotalMesas = 0;
+        $ambientesSeleccionados = [];
         foreach ($mesaIds as $idMesa) {
           $mesa = $mesasModel->getById($idMesa);
           if (!$mesa) {
             header('Location: /page/evento/reservarmesa?id=' . enc_id($reservaId) . '&error=mesa_no_encontrada');
             exit;
           }
+
+          // El tipo del elemento debe coincidir con el modo de selección (no mezclar mesa/silla).
+          if ($mesa->mesa_tipo !== $tipoSeleccion) {
+            header('Location: /page/evento/reservarmesa?id=' . enc_id($reservaId) . '&error=mesa_no_disponible');
+            exit;
+          }
+          $ambientesSeleccionados[$mesa->mesa_ambiente] = true;
 
           $mesaLibre = ($mesa->mesa_estado == '0' || $mesa->mesa_estado == '' || $mesa->mesa_estado === null)
             && ($mesa->mesa_provision === null || $mesa->mesa_provision === '');
@@ -1465,6 +1565,16 @@ class Page_eventoController extends Page_mainController
             exit;
           }
           $capacidadTotalMesas += (int) $mesa->mesa_capacidad;
+        }
+
+        // En modo sillas todas deben pertenecer al mismo ambiente.
+        if ($tipoSeleccion === 'silla' && count($ambientesSeleccionados) > 1) {
+          $this->logAuditoria('SILLAS_CONFIRMADAS_AMBIENTE_MIXTO', $reservaId, [
+            'observaciones' => 'Se intentaron confirmar sillas de distintos ambientes',
+            'ambientes' => array_keys($ambientesSeleccionados)
+          ]);
+          header('Location: /page/evento/reservarmesa?id=' . enc_id($reservaId) . '&error=ambiente_mixto');
+          exit;
         }
 
         if ($totalInvitadosReserva > 0 && $capacidadTotalMesas < $totalInvitadosReserva) {
@@ -1644,8 +1754,19 @@ class Page_eventoController extends Page_mainController
       }
     }
 
+    // Si la reserva es de sillas individuales, el precio se calcula por tipo de
+    // participante (socio / socio hijo <25 / invitado) IGUAL que las mesas, pero con
+    // montos propios de silla (categoria_precio_silla_*), nunca los de mesa.
+    // Prioridad: 1) mesa_precio de la silla concreta (override manual, opcional),
+    // 2) tarifa de silla de la categoría del ambiente según tipo de participante,
+    // 3) ambiente_precio_silla (precio general del ambiente) si la categoría no tiene
+    // tarifas de silla configuradas, 4) $0 si no hay ningún precio definido.
+    $esModoSilla = !empty($mesasCompletas) && ($mesasCompletas[0]->mesa_tipo === 'silla');
+    $this->_view->esModoSilla = $esModoSilla;
+
     // Calcular precios para cada invitado a cobrar
     $totalGeneral = 0;
+    $idxSilla = 0;
     foreach ($invitados as $invitado) {
       $invitado->es_socio_principal = ($invitado->documento_invitado == $socio->SBE_CODI && $invitado->invitadoReserva_beneficiario_principal == 1);
 
@@ -1653,7 +1774,51 @@ class Page_eventoController extends Page_mainController
       $precio = 0;
       $tipoParticipante = 'N/A';
 
-      if ($categoria) {
+      if ($esModoSilla) {
+        $silla = isset($mesasCompletas[$idxSilla]) ? $mesasCompletas[$idxSilla] : null;
+        $idxSilla++;
+
+        if ($silla && $silla->mesa_precio !== null && $silla->mesa_precio !== '') {
+          // Override manual: esta silla concreta tiene un precio fijo asignado.
+          $precio = (float) $silla->mesa_precio;
+          $tipoParticipante = 'Silla';
+        } elseif ($categoria) {
+          if ($invitado->invitado_tipo == '1') { // Beneficiario
+            $esMenor25 = ($invitado->invitadoReserva_beneficiario_menor25) && $invitado->invitadoReserva_beneficiario_menor25;
+            $esHijo = ($invitado->invitadoReserva_beneficiario_hijo) && $invitado->invitadoReserva_beneficiario_hijo;
+            if ($esMenor25 && $esHijo) {
+              $precio = $categoria->categoria_precio_silla_socio_hijo;
+              $tipoParticipante = 'Beneficiario Hijo < 25';
+              if ($invitado->invitadoReserva_estado_invitado == 'S') {
+                $tipoParticipante = 'Cosocio Hijo < 25';
+              }
+            } else {
+              $precio = $categoria->categoria_precio_silla_socio;
+              $tipoParticipante = 'Beneficiario';
+              if ($invitado->invitadoReserva_estado_invitado == 'S') {
+                $tipoParticipante = 'Cosocio';
+              }
+            }
+          } else { // Invitado
+            $precio = $categoria->categoria_precio_silla_invitado;
+            $tipoParticipante = 'Invitado';
+          }
+          // La categoría no tiene tarifas de silla configuradas (todo NULL/vacío):
+          // respaldo al precio general del ambiente.
+          if ($precio === null || $precio === '') {
+            $precio = ($silla && $silla->ambiente_precio_silla !== null && $silla->ambiente_precio_silla !== '')
+              ? (float) $silla->ambiente_precio_silla
+              : 0;
+          }
+        } elseif ($silla && $silla->ambiente_precio_silla !== null && $silla->ambiente_precio_silla !== '') {
+          // Sin categoría asociada al ambiente: precio general del ambiente.
+          $precio = (float) $silla->ambiente_precio_silla;
+          $tipoParticipante = 'Silla';
+        } else {
+          $precio = 0;
+          $tipoParticipante = 'Silla';
+        }
+      } elseif ($categoria) {
         if ($invitado->invitado_tipo == '1') { // Beneficiario
           $esMenor25 = ($invitado->invitadoReserva_beneficiario_menor25) && $invitado->invitadoReserva_beneficiario_menor25;
 
@@ -1984,6 +2149,7 @@ class Page_eventoController extends Page_mainController
     $this->_view->reserva = $reserva;
     $this->_view->evento = $evento;
     $this->_view->mesaInfo = $mesaInfo;
+    $this->_view->esModoSilla = !empty($mesaInfo) && ($mesaInfo[0]->mesa_tipo === 'silla');
     $this->_view->estadoTexto = $reserva ? $this->mapEstadoReserva((int) $reserva->reserva_estado) : '';
   }
 
@@ -2079,7 +2245,7 @@ class Page_eventoController extends Page_mainController
     $placetopay = Payment_Placetopay::getInstance()->getPlacetopay();
     $placetopayData = Payment_Placetopay::getInstance()->getData();
     $date = date('Ymd');
-    $reference = "BOL_" . $date . "_" . $id;
+    $reference = "CULBOL_" . $date . "_" . $id;
 
     $totalPagar = intval($reserva->reserva_total_pagar);
     $dataLog['log_log'] = 'Total a pagar: ' . $totalPagar;
@@ -2366,10 +2532,18 @@ class Page_eventoController extends Page_mainController
           return;
         }
 
+        // Defensa: el tipo del elemento debe coincidir con el modo de selección de la sesión
+        // (no mezclar mesas y sillas en una misma compra vía peticiones manipuladas).
+        $tipoSeleccion = Session::getInstance()->get('tipo_seleccion_mesa') ?: 'mesa';
+        if ($mesa->mesa_tipo !== $tipoSeleccion) {
+          echo json_encode(['success' => false, 'message' => 'El elemento no corresponde al tipo de selección']);
+          return;
+        }
+
         // Provisional funciona igual que ocupada: bloquea la selección igual que mesa_estado == 1.
         $mesaProvisional = $mesa->mesa_provision !== null && $mesa->mesa_provision !== '';
         if (($mesa->mesa_estado == 1 || $mesaProvisional) && !in_array($id, $mesasActualesPreservadas)) {
-          $reservaConEstaMesa = $reservasModel->getList("id = '{$reservaSession->id}' AND reserva_mesa_id = '$id'", "");
+          $reservaConEstaMesa = $reservasModel->getList("id = '{$reservaSession->id}' AND FIND_IN_SET('$id', reserva_mesa_id)", "");
           if (!$reservaConEstaMesa || count($reservaConEstaMesa) == 0) {
             echo json_encode(['success' => false, 'message' => 'Mesa ocupada por otro usuario']);
             return;
@@ -2436,15 +2610,21 @@ class Page_eventoController extends Page_mainController
     if (is_array($data)) {
       $ambienteId = isset($data['ambiente_id']) ? $data['ambiente_id'] : null;
       $capacidad = isset($data['capacidad']) ? $data['capacidad'] : null;
+      $tipo = isset($data['tipo']) && $data['tipo'] ? $data['tipo'] : 'mesa';
     } else {
       $ambienteId = $this->_getSanitizedParam('ambiente_id');
       $capacidad = $this->_getSanitizedParam('capacidad');
+      $tipo = $this->_getSanitizedParam('tipo') ?: 'mesa';
     }
+    // Solo se permiten los tipos seleccionables por el flujo de compra.
+    $tipo = ($tipo === 'silla') ? 'silla' : 'mesa';
 
     if (!$ambienteId || !$capacidad) {
       echo json_encode(['success' => false, 'message' => 'Parámetros inválidos']);
       return;
     }
+    $ambienteId = (int) $ambienteId;
+    $capacidad = (int) $capacidad;
 
     $mesasModel = new Administracion_Model_DbTable_Mesas();
     $reservasModel = new Administracion_Model_DbTable_Reservas();
@@ -2453,8 +2633,8 @@ class Page_eventoController extends Page_mainController
     $reservaSession = Session::getInstance()->get('reserva');
     $miReservaId = $reservaSession ? $reservaSession->id : null;
 
-    // Obtener todas las mesas del ambiente con la capacidad requerida
-    $mesas = $mesasModel->getList("mesa_ambiente = '$ambienteId' AND mesa_capacidad = '$capacidad' AND mesa_activa = '1'", "");
+    // Obtener todos los elementos del ambiente con la capacidad y el tipo requeridos
+    $mesas = $mesasModel->getList("mesa_ambiente = '$ambienteId' AND mesa_capacidad = '$capacidad' AND mesa_tipo = '$tipo' AND mesa_activa = '1'", "");
 
     if (!$mesas) {
       echo json_encode(['success' => false, 'message' => 'No hay mesas en este ambiente']);
@@ -2465,8 +2645,8 @@ class Page_eventoController extends Page_mainController
     foreach ($mesas as $mesa) {
       // Provisional funciona igual que ocupada: se refleja como mesa_estado = 1
       // para que el mapa la pinte/bloquee igual sin necesidad de lógica aparte.
-      // Solo aplica a elementos de tipo "mesa" (no barras, puertas, etc.).
-      $mesaProvisional = $mesa->mesa_tipo === 'mesa'
+      // Aplica a elementos seleccionables (mesa y silla), no a decoraciones.
+      $mesaProvisional = ($mesa->mesa_tipo === 'mesa' || $mesa->mesa_tipo === 'silla')
         && $mesa->mesa_provision !== null && $mesa->mesa_provision !== '';
       $mesaInfo = [
         'mesa_id' => $mesa->mesa_id,
@@ -2490,7 +2670,7 @@ class Page_eventoController extends Page_mainController
 
       // Si la mesa está ocupada (estado 1), verificar si es mi reserva
       if ($mesa->mesa_estado == 1 && $miReservaId) {
-        $reservaConEstaMesa = $reservasModel->getList("id = '$miReservaId' AND reserva_mesa_id = '{$mesa->mesa_id}'", "");
+        $reservaConEstaMesa = $reservasModel->getList("id = '$miReservaId' AND FIND_IN_SET('{$mesa->mesa_id}', reserva_mesa_id)", "");
         if ($reservaConEstaMesa && count($reservaConEstaMesa) > 0) {
           $mesaInfo['es_mia'] = true;
         }

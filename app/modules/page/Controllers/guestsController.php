@@ -27,6 +27,10 @@ class Page_guestsController extends Page_mainController
     $popupsGuests = $publicidadModel->getList("publicidad_seccion='4' AND publicidad_estado=1", "");
     $this->_view->popupGuests = $popupsGuests[1] ?? null;
 
+    $eventoModel = new Administracion_Model_DbTable_Eventos();
+    $evento = $eventoModel->getById($this->idEvento);
+    $this->_view->menuHabilitado = (int) ($evento->evento_menu_habilitado ?? 1) === 1;
+
     $id = $this->_getDecryptedParam('id'); // opcional
     if ($id == 896) {
       $id = null;
@@ -186,6 +190,11 @@ class Page_guestsController extends Page_mainController
     $reservaId = $this->_getDecryptedParam('reserva_id');
     $invitados = $_POST['invitados'] ?? [];
     $invitadosReservaModel = new Administracion_Model_DbTable_Invitadosreservas();
+
+    $eventoModel = new Administracion_Model_DbTable_Eventos();
+    $evento = $eventoModel->getById($this->idEvento);
+    $menuHabilitado = (int) ($evento->evento_menu_habilitado ?? 1) === 1;
+
     $actualizados = 0;
     foreach ($invitados as $id_invitado => $data) {
       $updateData = [
@@ -195,7 +204,7 @@ class Page_guestsController extends Page_mainController
         'invitadoReserva_correo_invitado' => $data['invitadoReserva_correo_invitado'] ?? null,
         'invitadoReserva_fecha_nacimiento' => $data['invitadoReserva_fecha_nacimiento'] ?? null,
         'invitadoReserva_telefono' => $data['invitadoReserva_telefono'] ?? null,
-        'invitadoReserva_menu' => ($data['invitadoReserva_menu'] ?? 'normal') === 'vegetariano' ? 'vegetariano' : 'normal',
+        'invitadoReserva_menu' => ($menuHabilitado && ($data['invitadoReserva_menu'] ?? 'normal') === 'vegetariano') ? 'vegetariano' : 'normal',
       ];
       $invitadosReservaModel->updateCamposEditables($updateData, $id_invitado);
       $actualizados++;
@@ -325,7 +334,7 @@ class Page_guestsController extends Page_mainController
       $baseString = "{$idReserva}-{$reserva->reserva_correo}-{$yearMonth}-{$nextId}";
       $token = substr(base_convert(hash('sha256', $baseString), 16, 36), 0, 12);
 
-      $boletasModel->updateGeneratedQR($id, $customUid, $token, $this->idEvento, $invitado->id_invitado, $mesaId);
+      $boletasModel->updateGeneratedQR($id, $customUid, $token, $this->idEvento, $invitado->id_invitado, $mesaAsignadaId);
 
       $boleta = $boletasModel->getById($id);
       $qrsGenerados[] = [
@@ -414,7 +423,7 @@ class Page_guestsController extends Page_mainController
 
     // Si aún no tiene boleta, validamos y guardamos sus datos antes de generarla
     if (!$boletaExistente) {
-      if (strlen($nombre) < 3 || strlen($apellido) < 3) {
+      if (strlen($nombre) < 3 || strlen($apellido) < 1) {
         echo json_encode(['status' => false, 'message' => 'Nombre y apellido deben tener mínimo 3 caracteres.']);
         return;
       }
@@ -435,7 +444,10 @@ class Page_guestsController extends Page_mainController
         return;
       }
 
-      $menu = $menu === 'vegetariano' ? 'vegetariano' : 'normal';
+      $eventoModel = new Administracion_Model_DbTable_Eventos();
+      $evento = $eventoModel->getById($this->idEvento);
+      $menuHabilitado = (int) ($evento->evento_menu_habilitado ?? 1) === 1;
+      $menu = ($menuHabilitado && $menu === 'vegetariano') ? 'vegetariano' : 'normal';
       $updateData = [
         'invitadoReserva_nombre_invitado' => $nombre,
         'invitadoReserva_apellido_invitado' => $apellido,
@@ -452,8 +464,9 @@ class Page_guestsController extends Page_mainController
     if (!$boletaExistente) {
       $mesasModel = new Administracion_Model_DbTable_Mesas();
       $ambienteModel = new Administracion_Model_DbTable_Ambientes();
+      $pisosModel = new Administracion_Model_DbTable_Pisos();
 
-      // Buscar la primera mesa de la reserva con cupo disponible
+      // Buscar la primera mesa/silla de la reserva con cupo disponible
       $mesaIds = array_map('trim', explode(',', $reserva->reserva_mesa_id));
       $mesaAsignadaId = null;
       $mesaSeleccionada = null;
@@ -471,6 +484,12 @@ class Page_guestsController extends Page_mainController
         echo json_encode(['status' => false, 'message' => 'No hay capacidad disponible en las mesas asignadas a la reserva.']);
         return;
       }
+      // Piso/ambiente para el PDF (mismo dato que enviarAction, aquí faltaba y dejaba
+      // la línea de "Piso" en blanco en la boleta individual).
+      $mesaSeleccionada->ambienteinfo = $ambienteModel->getById($mesaSeleccionada->mesa_ambiente);
+      $mesaSeleccionada->pisoInfo = $mesaSeleccionada->ambienteinfo
+        ? $pisosModel->getById($mesaSeleccionada->ambienteinfo->ambiente_piso)
+        : null;
 
       // Número de ticket consistente con la posición del invitado dentro de la reserva
       $todosInvitados = $invitadosReservaModel->getList("reserva_id_reserva = '$reservaId'", "id_invitado ASC");
@@ -511,12 +530,34 @@ class Page_guestsController extends Page_mainController
       $boletasModel->updateGeneratedQR($id, $customUid, $token, $this->idEvento, $invitado->id_invitado, $mesaAsignadaId);
       $boleta = $boletasModel->getById($id);
 
+      // El QR debe generarse ANTES del PDF: la plantilla del PDF referencia el
+      // archivo PNG del QR por su ruta, y si aún no existe en disco, TCPDF no
+      // puede incrustarlo (deja esa zona del PDF en blanco).
+      $rutaQR = $this->generarQR($boleta->boleta_uid, $invitado->documento_invitado);
       $ambiente = $ambienteModel->getById($mesaSeleccionada->mesa_ambiente);
       $this->generarpdfs($reserva, $boleta, $mesaSeleccionada, $ambiente, $invitado);
-      $rutaQR = $this->generarQR($boleta->boleta_uid, $invitado->documento_invitado);
     } else {
+      // La boleta ya existe: se regenera el PDF/QR (uid y token no cambian, es
+      // idempotente) para que cualquier corrección a la plantilla se refleje al
+      // reenviar, en vez de quedar reenviando para siempre el PDF viejo del disco.
       $boleta = $boletaExistente;
-      $rutaQR = "images_sales/qrs_news/{$boleta->boleta_uid}.png";
+      $mesasModel = new Administracion_Model_DbTable_Mesas();
+      $ambienteModel = new Administracion_Model_DbTable_Ambientes();
+      $pisosModel = new Administracion_Model_DbTable_Pisos();
+
+      // El QR debe generarse ANTES del PDF (ver comentario en la rama anterior).
+      $rutaQR = $this->generarQR($boleta->boleta_uid, $invitado->documento_invitado);
+
+      $mesaSeleccionada = $boleta->boleta_mesa ? $mesasModel->getById($boleta->boleta_mesa) : null;
+      $ambiente = null;
+      if ($mesaSeleccionada) {
+        $mesaSeleccionada->ambienteinfo = $ambienteModel->getById($mesaSeleccionada->mesa_ambiente);
+        $mesaSeleccionada->pisoInfo = $mesaSeleccionada->ambienteinfo
+          ? $pisosModel->getById($mesaSeleccionada->ambienteinfo->ambiente_piso)
+          : null;
+        $ambiente = $ambienteModel->getById($mesaSeleccionada->mesa_ambiente);
+        $this->generarpdfs($reserva, $boleta, $mesaSeleccionada, $ambiente, $invitado);
+      }
     }
 
     $qrData = [

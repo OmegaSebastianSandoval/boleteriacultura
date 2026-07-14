@@ -227,6 +227,11 @@ class Administracion_categoriasController extends Administracion_mainController
 		$data['categoria_precio_socio_hijo'] = $this->_getSanitizedParam("categoria_precio_socio_hijo");
 		$data['categoria_precio_invitado'] = $this->_getSanitizedParam("categoria_precio_invitado");
 		$data['categoria_precio_invitado_socio'] = $this->_getSanitizedParam("categoria_precio_invitado_socio");
+		// Precio de silla individual por tipo de participante (montos propios, distintos
+		// a los de mesa de arriba).
+		$data['categoria_precio_silla_socio'] = $this->_getSanitizedParam("categoria_precio_silla_socio");
+		$data['categoria_precio_silla_socio_hijo'] = $this->_getSanitizedParam("categoria_precio_silla_socio_hijo");
+		$data['categoria_precio_silla_invitado'] = $this->_getSanitizedParam("categoria_precio_silla_invitado");
 		return $data;
 	}
 	/**

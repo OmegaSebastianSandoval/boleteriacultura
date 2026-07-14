@@ -184,9 +184,15 @@
       <!-- ── Nota invitados ── -->
       <div class="alert alert-info py-2 px-3 mb-2" style="font-size: 1rem;" role="alert">
         <i class="fas fa-info-circle me-2"></i>
-        Las boletas no asignadas a beneficiarios serán para <strong>invitados</strong>.
-        Quedan <b id="contadorRestantesAlert"><?= $this->cantidadSeleccionada ?></b>
-        boleta<?= $this->cantidadSeleccionada != 1 ? 's' : '' ?> por asignar.
+        <?php if ($this->invitadosPermitidos): ?>
+          Las boletas no asignadas a beneficiarios serán para <strong>invitados</strong>.
+          Quedan <b id="contadorRestantesAlert"><?= $this->cantidadSeleccionada ?></b>
+          boleta<?= $this->cantidadSeleccionada != 1 ? 's' : '' ?> por asignar.
+        <?php else: ?>
+          Este evento <strong>no permite invitados no asociados</strong>: debe asignar un socio o beneficiario a cada boleta.
+          Quedan <b id="contadorRestantesAlert"><?= $this->cantidadSeleccionada ?></b>
+          boleta<?= $this->cantidadSeleccionada != 1 ? 's' : '' ?> por asignar.
+        <?php endif; ?>
       </div>
       <div class="sb-footer-actions">
         <a href="/page/evento/reservar" class="sb-back-btn">
@@ -249,6 +255,7 @@
     const cantidadSeleccionada = <?php echo $this->cantidadSeleccionada ?>;
     const beneficiariosData = <?php echo json_encode($this->beneficiariosStats['listado'] ?? []) ?>;
     const usuarioActualDocumento = "<?php echo $this->socio->SBE_CODI ?>";
+    const invitadosPermitidos = <?= $this->invitadosPermitidos ? 'true' : 'false' ?>;
 
     let beneficiariosSeleccionados = [];
     let sociosAccionEncontrados = [];
@@ -705,8 +712,25 @@
       });
     });
 
+    // Cuando el evento no permite invitados no asociados, el cupo completo debe
+    // cubrirse con socios/beneficiarios antes de poder continuar.
+    function cupoIncompletoSinInvitados () {
+      if (invitadosPermitidos) return false;
+      if (beneficiariosSeleccionados.length >= cantidadSeleccionada) return false;
+      const faltan = cantidadSeleccionada - beneficiariosSeleccionados.length;
+      Swal.fire({
+        icon: 'warning',
+        title: 'Cupo incompleto',
+        text: `Este evento no permite invitados no asociados. Debe asignar un socio o beneficiario a las ${faltan} boleta${faltan > 1 ? 's' : ''} restante${faltan > 1 ? 's' : ''} antes de continuar.`,
+        confirmButtonText: 'Entendido'
+      });
+      return true;
+    }
+
     btnContinuar.addEventListener('click', function (e) {
       e.preventDefault();
+
+      if (cupoIncompletoSinInvitados()) return;
 
       const beneficiariosSeleccionadosActuales = beneficiariosSeleccionados.filter(b => !b.es_socio_principal).length;
       const cantidadPersonas = cantidadSeleccionada;
@@ -749,6 +773,7 @@
 
     document.getElementById('formSeleccionBeneficiarios').addEventListener('submit', function (e) {
       e.preventDefault();
+      if (cupoIncompletoSinInvitados()) return;
       enviarDatos();
     });
 
@@ -1514,6 +1539,7 @@
     justify-content: space-between;
     padding-top: 1.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 5px;
   }
 
   .sb-footer-actions {

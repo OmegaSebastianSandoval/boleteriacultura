@@ -822,7 +822,14 @@
   }
 
   function startCameraScanner () {
-    qrScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: 200 });
+    qrScanner = new Html5QrcodeScanner('qr-reader', {
+      fps: 10,
+      qrbox: 200,
+      rememberLastUsedCamera: true,
+      videoConstraints: {
+        facingMode: { ideal: 'environment' }
+      }
+    });
     qrScanner.render(onScanSuccess);
     document.getElementById('restart-scanner').style.display = 'none';
   }

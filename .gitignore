@@ -15,3 +15,5 @@ Gruntfile.js
 package.json
 package-lock.json
 skills-lock.json
+composer.lock
+CLAUDE.md

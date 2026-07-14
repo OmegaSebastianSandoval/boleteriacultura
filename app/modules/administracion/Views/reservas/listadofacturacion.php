@@ -204,6 +204,10 @@ $estadometodo = [
                 $invitados = 0;
                 $hijosMenores25 = 0;
                 $valorTotal = 0;
+                // Reserva de sillas individuales: usar las tarifas de silla de la
+                // categoría (categoria_precio_silla_*), no las de mesa. Mismo esquema
+                // que eventoController::resumenAction().
+                $esModoSilla = !empty($reserva->mesas) && is_array($reserva->mesas) && ($reserva->mesas[0]->mesa_tipo === 'silla');
                 $valorPorTipo = [
                   'S' => 0, // Socio
                   'A' => 0, // Cosocio
@@ -234,28 +238,31 @@ $estadometodo = [
                     $tipoParticipante = '';
                     if (($reserva->categorias) && is_array($reserva->categorias) && count($reserva->categorias) > 0) {
                       $categoria = $reserva->categorias[0];
+                      $campoSocio = $esModoSilla ? 'categoria_precio_silla_socio' : 'categoria_precio_socio';
+                      $campoSocioHijo = $esModoSilla ? 'categoria_precio_silla_socio_hijo' : 'categoria_precio_socio_hijo';
+                      $campoInvitado = $esModoSilla ? 'categoria_precio_silla_invitado' : 'categoria_precio_invitado';
                       if ($tipo == 'A') { // Socio
                         if ($esMenor25 && $esHijo) {
-                          $valor = ($categoria->categoria_precio_socio_hijo) ? floatval($categoria->categoria_precio_socio_hijo) : 0;
+                          $valor = ($categoria->$campoSocioHijo) ? floatval($categoria->$campoSocioHijo) : 0;
                           $tipoParticipante = 'Socio hijo < 25';
                           $socioHijo25++;
                         } else {
-                          $valor = ($categoria->categoria_precio_socio) ? floatval($categoria->categoria_precio_socio) : 0;
+                          $valor = ($categoria->$campoSocio) ? floatval($categoria->$campoSocio) : 0;
                           $tipoParticipante = 'Socio';
                           $socio++;
                         }
                       } elseif ($tipo == 'S') { // Cosocio
                         if ($esMenor25 && $esHijo) {
-                          $valor = ($categoria->categoria_precio_socio_hijo) ? floatval($categoria->categoria_precio_socio_hijo) : 0;
+                          $valor = ($categoria->$campoSocioHijo) ? floatval($categoria->$campoSocioHijo) : 0;
                           $tipoParticipante = 'Cosocio hijo < 25';
                           $cosocioHijo25++;
                         } else {
-                          $valor = ($categoria->categoria_precio_socio) ? floatval($categoria->categoria_precio_socio) : 0;
+                          $valor = ($categoria->$campoSocio) ? floatval($categoria->$campoSocio) : 0;
                           $tipoParticipante = 'Cosocio';
                           $cosocio++;
                         }
                       } else { // Invitado
-                        $valor = ($categoria->categoria_precio_invitado) ? floatval($categoria->categoria_precio_invitado) : 0;
+                        $valor = ($categoria->$campoInvitado) ? floatval($categoria->$campoInvitado) : 0;
                         $tipoParticipante = 'Invitado';
                         $invitado++;
                       }
@@ -266,11 +273,14 @@ $estadometodo = [
                 }
                 $valorPorInvitado = $totalInvitados > 0 ? round($valorTotal / $totalInvitados, 2) : 0;
                 // Definir precios unitarios antes de imprimir la fila
-                $precioSocio = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio)) ? floatval($reserva->categorias[0]->categoria_precio_socio) : 0;
-                $precioSocioHijo = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio_hijo)) ? floatval($reserva->categorias[0]->categoria_precio_socio_hijo) : 0;
-                $precioCosocio = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio)) ? floatval($reserva->categorias[0]->categoria_precio_socio) : 0;
-                $precioCosocioHijo = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_socio_hijo)) ? floatval($reserva->categorias[0]->categoria_precio_socio_hijo) : 0;
-                $precioInvitado = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->categoria_precio_invitado)) ? floatval($reserva->categorias[0]->categoria_precio_invitado) : 0;
+                $campoSocioUnit = $esModoSilla ? 'categoria_precio_silla_socio' : 'categoria_precio_socio';
+                $campoSocioHijoUnit = $esModoSilla ? 'categoria_precio_silla_socio_hijo' : 'categoria_precio_socio_hijo';
+                $campoInvitadoUnit = $esModoSilla ? 'categoria_precio_silla_invitado' : 'categoria_precio_invitado';
+                $precioSocio = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->$campoSocioUnit)) ? floatval($reserva->categorias[0]->$campoSocioUnit) : 0;
+                $precioSocioHijo = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->$campoSocioHijoUnit)) ? floatval($reserva->categorias[0]->$campoSocioHijoUnit) : 0;
+                $precioCosocio = $precioSocio;
+                $precioCosocioHijo = $precioSocioHijo;
+                $precioInvitado = (isset($reserva->categorias[0]) && isset($reserva->categorias[0]->$campoInvitadoUnit)) ? floatval($reserva->categorias[0]->$campoInvitadoUnit) : 0;
 
                 // Verificar si alguna mesa de esta reserva está duplicada
                 $mesaDuplicada = false;

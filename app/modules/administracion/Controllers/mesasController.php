@@ -342,7 +342,10 @@ class Administracion_mesasController extends Administracion_mainController
 		$data['mesa_imagen_ubicacion_en_piso'] = "";
 		$data['mesa_pos_x'] = $this->_getSanitizedParam("mesa_pos_x");
 		$data['mesa_pos_y'] = $this->_getSanitizedParam("mesa_pos_y");
-		$data['mesa_tipo'] = $this->_getSanitizedParam("mesa_tipo");
+		$data['mesa_tipo'] = $this->_getSanitizedParam("mesa_tipo") ?: 'mesa';
+		// Precio solo aplica a sillas; para el resto de tipos se guarda vacío (NULL en BD).
+		$precioMesa = $this->_getSanitizedParam("mesa_precio");
+		$data['mesa_precio'] = ($data['mesa_tipo'] === 'silla' && $precioMesa !== '') ? $precioMesa : '';
 		$data['mesa_ancho'] = $this->_getSanitizedParam("mesa_ancho");
 		$data['mesa_alto'] = $this->_getSanitizedParam("mesa_alto");
 		$data['mesa_rotacion'] = $this->_getSanitizedParam("mesa_rotacion");
@@ -401,7 +404,9 @@ class Administracion_mesasController extends Administracion_mainController
 	protected function getFilter()
 	{
 		// 		$filtros = " 1 = 1   AND mesa_tipo ='mesa'  AND mesa_activa = '1' ";
-		$filtros = " 1 = 1   AND mesa_tipo ='mesa' ";
+		// Incluye mesas y sillas (elementos vendibles); las decoraciones (barra, puerta, etc.)
+		// se administran solo desde el editor visual de ambientes.
+		$filtros = " 1 = 1   AND mesa_tipo IN ('mesa', 'silla') ";
 		if (Session::getInstance()->get($this->namefilter) != "") {
 			$filters = (object) Session::getInstance()->get($this->namefilter);
 			if ($filters->mesa_ambiente != '') {

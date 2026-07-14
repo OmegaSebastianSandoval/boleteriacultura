@@ -35,6 +35,7 @@
 
   <?php
   $tieneMesas = $this->mesaInfo && $this->categoria;
+  $esSillaRespuesta = !empty($this->esModoSilla);
   $mostrarInfoPago = ($this->reserva->reserva_estado == '2' && $this->reserva->reserva_numero_cuotas)
     || ($this->reserva->reserva_estado == '3' && $this->reserva->reserva_franquicia);
   ?>
@@ -142,12 +143,15 @@
               </div>
             </div>
 
-            <!-- Información de Mesa y Categoría -->
+            <!-- Información de Mesa/Silla y Categoría -->
             <?php if ($tieneMesas): ?>
               <div class="rs-card mb-3">
                 <div class="rs-card-header">
-                  <i class="fa-solid fa-table me-2"></i>
-                  <h5>Mesa<?= count($this->mesaInfo) != 1 ? 's' : '' ?> reservada<?= count($this->mesaInfo) != 1 ? 's' : '' ?></h5>
+                  <i class="fa-solid <?= $esSillaRespuesta ? 'fa-chair' : 'fa-table' ?> me-2"></i>
+                  <h5>
+                    <?= $esSillaRespuesta ? 'Silla' : 'Mesa' ?><?= count($this->mesaInfo) != 1 ? 's' : '' ?>
+                    reservada<?= count($this->mesaInfo) != 1 ? 's' : '' ?>
+                  </h5>
                 </div>
                 <div class="rs-card-body p-0">
                   <?php foreach ($this->mesaInfo as $index => $mesa): ?>
@@ -158,17 +162,19 @@
                     ?>
                     <div class="rs-mesa-bloque">
                       <div class="rs-mesa-dato">
-                        <span class="rs-mesa-key">Mesa</span>
+                        <span class="rs-mesa-key"><?= $esSillaRespuesta ? 'Silla' : 'Mesa' ?></span>
                         <span class="rs-mesa-val"><?= htmlspecialchars($mesa->mesa_nombre) ?></span>
                       </div>
                       <div class="rs-mesa-dato">
                         <span class="rs-mesa-key">Código</span>
                         <span class="rs-mesa-val"><?= htmlspecialchars($mesa->mesa_codigo) ?></span>
                       </div>
-                      <div class="rs-mesa-dato">
-                        <span class="rs-mesa-key">Capacidad</span>
-                        <span class="rs-mesa-val"><?= (int) $mesa->mesa_capacidad ?> personas</span>
-                      </div>
+                      <?php if (!$esSillaRespuesta): ?>
+                        <div class="rs-mesa-dato">
+                          <span class="rs-mesa-key">Capacidad</span>
+                          <span class="rs-mesa-val"><?= (int) $mesa->mesa_capacidad ?> personas</span>
+                        </div>
+                      <?php endif; ?>
                       <div class="rs-mesa-dato">
                         <span class="rs-mesa-key">Piso</span>
                         <span class="rs-mesa-val"><?= htmlspecialchars($pisoMostrar) ?></span>

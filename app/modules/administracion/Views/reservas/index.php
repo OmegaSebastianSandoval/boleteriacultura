@@ -411,21 +411,21 @@ document.addEventListener('DOMContentLoaded', function() {
     return b.length ? b.join(' ') : 'N/A';
   }
 
-  function calcPrecio(inv, cat) {
+  function calcPrecio(inv, cat, esModoSilla) {
     if (!cat) return { tipo: '&mdash;', precio: null };
     var tipo, precio;
     if (String(inv.invitado_tipo) === '1') {
       var esMenor25 = inv.invitadoReserva_beneficiario_menor25 == 1;
       var esHijo    = inv.invitadoReserva_beneficiario_hijo    == 1;
       if (esMenor25 && esHijo) {
-        precio = cat.categoria_precio_socio_hijo;
+        precio = esModoSilla ? cat.categoria_precio_silla_socio_hijo : cat.categoria_precio_socio_hijo;
         tipo   = (String(inv.invitadoReserva_estado_invitado) === 'S') ? 'Cosocio Hijo &lt; 25' : 'Beneficiario Hijo &lt; 25';
       } else {
-        precio = cat.categoria_precio_socio;
+        precio = esModoSilla ? cat.categoria_precio_silla_socio : cat.categoria_precio_socio;
         tipo   = (String(inv.invitadoReserva_estado_invitado) === 'S') ? 'Cosocio' : 'Beneficiario';
       }
     } else {
-      precio = cat.categoria_precio_invitado;
+      precio = esModoSilla ? cat.categoria_precio_silla_invitado : cat.categoria_precio_invitado;
       tipo   = 'Invitado';
     }
     return { tipo: tipo, precio: precio };
@@ -546,6 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
              ====================================================== */
           if (d.invitados && d.invitados.length) {
             var tieneCategoria = !!(d.categoria);
+            var esModoSilla = !!(d.mesa && d.mesa.mesa_tipo === 'silla');
             h += '<div class="div-dashboard mb-0" style="margin-top:12px;">';
             h += '<h2><i class="fas fa-users"></i> Invitados (' + d.invitados.length + ')</h2>';
             h += '<div class="pading-dashboard" style="height:auto;">';
@@ -557,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tieneCategoria) h += '<th>Tipo participante</th><th>Precio boleta</th>';
             h += '</tr></thead><tbody>';
             d.invitados.forEach(function(inv, i) {
-              var pc = calcPrecio(inv, d.categoria);
+              var pc = calcPrecio(inv, d.categoria, esModoSilla);
               h += '<tr>';
               h += '<td>' + bdg('bg-secondary', i + 1) + '</td>';
               h += '<td><strong>' + fv(inv.invitadoReserva_nombre_invitado) + '</strong></td>';

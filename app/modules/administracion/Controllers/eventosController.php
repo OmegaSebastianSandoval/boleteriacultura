@@ -391,6 +391,18 @@ class Administracion_eventosController extends Administracion_mainController
     $data['evento_imagenfondo_home_responsive'] = "";
     $data['evento_imagenfondo_login_responsive'] = "";
 
+    if ($this->_getSanitizedParam("evento_menu_habilitado") == '') {
+      $data['evento_menu_habilitado'] = '0';
+    } else {
+      $data['evento_menu_habilitado'] = $this->_getSanitizedParam("evento_menu_habilitado");
+    }
+
+    if ($this->_getSanitizedParam("evento_invitados_permitidos") == '') {
+      $data['evento_invitados_permitidos'] = '0';
+    } else {
+      $data['evento_invitados_permitidos'] = $this->_getSanitizedParam("evento_invitados_permitidos");
+    }
+
     return $data;
   }
 

@@ -35,6 +35,19 @@ $apellido = $this->reserva->reserva_apellido_cliente;
 $precio = $this->reserva->reserva_total_pagar;
 $invitado = $this->invitado;
 
+// Acceso null-safe con ?? (no isset()/ternario): si pisoInfo/ambiente vienen null
+// por cualquier motivo, esto NO debe emitir un Warning de PHP, porque este template
+// se captura con ob_start()/ob_get_clean() (ver View::getRoutPHP) y CUALQUIER salida,
+// incluidos los warnings, se inyecta tal cual en el HTML que arma el PDF con TCPDF,
+// rompiendo el parseo y dejando la boleta en blanco.
+$esSillaPdf = ($this->mesasInfo->mesa_tipo ?? null) === 'silla';
+$etiquetaElementoPdf = $esSillaPdf ? 'Silla' : 'Mesa';
+$mesaNombrePdf = $this->mesasInfo->mesa_nombre ?? '';
+$pisoNombrePdf = $this->mesasInfo->pisoInfo->piso_nombre ?? '';
+$ambienteNombrePdf = $this->ambiente->ambiente_nombre ?? '';
+$boletaUidPdf = $this->boleta->boleta_uid ?? '';
+$invitadoNombrePdf = trim(($this->invitado->invitadoReserva_nombre_invitado ?? '') . ' ' . ($this->invitado->invitadoReserva_apellido_invitado ?? ''));
+$invitadoDocumentoPdf = $this->invitado->documento_invitado ?? '';
 ?>
 <table border="0" cellpadding="5" cellspacing="0" width="100%" style="z-index: 99999;">
   <tr>
@@ -51,29 +64,29 @@ $invitado = $this->invitado;
         <tr>
           <!-- Celda con el identificador -->
           <td width="100%" style="text-align: center;">
-            <img src="<?= "/images_sales/qrs_news/" . $this->boleta->boleta_uid . ".png" ?>" alt="qr" width="150"
+            <img src="<?= "/images_sales/qrs_news/" . $boletaUidPdf . ".png" ?>" alt="qr" width="150"
               height="150" />
           </td>
         </tr>
       </table>
       <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
-        <?= $invitado->invitadoReserva_nombre_invitado. ' ' . $invitado->invitadoReserva_apellido_invitado ?>
+        <?= $invitadoNombrePdf ?>
       </p>
       <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
-        <?= $invitado->documento_invitado ?>
+        <?= $invitadoDocumentoPdf ?>
       </p>
       <br>
       <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
-        <?= $this->mesasInfo->mesa_nombre ?>
+        <?= $etiquetaElementoPdf ?>: <?= $mesaNombrePdf ?>
       </p>
       <!-- <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
-        Mesa c贸digo: <?= $this->mesasInfo->mesa_codigo ?>
+        <?= $etiquetaElementoPdf ?> c贸digo: <?= $this->mesasInfo->mesa_codigo ?? '' ?>
       </p> -->
       <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
-        <?= $this->mesasInfo->pisoInfo->piso_nombre ?>
+        <?= $pisoNombrePdf ?>
       </p>
       <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
-        Ambiente: <?= $this->ambiente->ambiente_nombre ?>
+        Ambiente: <?= $ambienteNombrePdf ?>
       </p>
       <p style="font-size: 13px; color: #000; font-weight: 500; line-height: 5px; text-align: center; margin: 0;">
         <!--Lugar: <?= $lugar ?>-->
@@ -81,13 +94,13 @@ $invitado = $this->invitado;
 
       <!-- <p valign="middle"
         style="border: 1px solid #000; font-size: 18px; font-weight: bold; text-align: center; width: 100px; margin: 10px auto 0 auto;">
-        <?= $this->boleta->boleta_uid ?>
+        <?= $boletaUidPdf ?>
       </p> -->
       <table border="0" align="center" width="100%" cellpadding="10">
         <tr align="center">
           <td width="25%"></td>
           <td width="50%" style="text-align: center; border: 1px solid #000;">
-            <b><?= $this->boleta->boleta_uid ?></b>
+            <b><?= $boletaUidPdf ?></b>
           </td>
         </tr>
         <tr>

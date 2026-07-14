@@ -25,9 +25,12 @@ class MYPDFNEWINFO extends TCPDF
 		$auto_page_break = $this->AutoPageBreak;
 		// disable auto-page-break
 		$this->SetAutoPageBreak(false, 0);
-		// set bacground image
-		$img_file = IMAGE_PATH . $disenoActivo->boletas_estilo_fondo;
-		$this->Image($img_file, 0, 0, $w, $h, '', '', '', false, 300, '', false, false, 0);
+		// set bacground image (si no hay un estilo activo configurado, se omite el fondo
+		// en vez de generar un Warning por acceder a una propiedad de null)
+		if ($disenoActivo) {
+			$img_file = IMAGE_PATH . $disenoActivo->boletas_estilo_fondo;
+			$this->Image($img_file, 0, 0, $w, $h, '', '', '', false, 300, '', false, false, 0);
+		}
 		// restore auto-page-break status
 		$this->SetAutoPageBreak($auto_page_break, $bMargin);
 		// set the starting point for the page content
@@ -43,7 +46,7 @@ class MYPDFNEWINFO extends TCPDF
 		$this->SetFont('helvetica', 'x', 10);
 		$this->SetTextColor(255, 255, 255);
 		// Page number
-		$this->Cell(0, 10, $disenoActivo->boletas_estilo_textofooter, 0, false, 'C', 0, '', 0, false, 'T', 'M');
+		$this->Cell(0, 10, $disenoActivo->boletas_estilo_textofooter ?? '', 0, false, 'C', 0, '', 0, false, 'T', 'M');
 	}
 }
 

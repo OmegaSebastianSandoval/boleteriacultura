@@ -39,8 +39,11 @@ class Administracion_Model_DbTable_Ambientes extends Db_Table
 		$ambiente_descuento = $data['ambiente_descuento'] ?? 0;
 		$ambiente_fecha_partido = $data['ambiente_fecha_partido'] ?? null;
 		$fechaPartidoSql = $ambiente_fecha_partido ? "'$ambiente_fecha_partido'" : 'NULL';
+		$ambiente_precio_silla = $data['ambiente_precio_silla'] ?? null;
+		$precioSillaSql = ($ambiente_precio_silla !== null && $ambiente_precio_silla !== '')
+			? "'" . (float) $ambiente_precio_silla . "'" : 'NULL';
 
-		$query = "INSERT INTO ambientes( ambiente_evento, ambiente_piso, ambiente_nombre, ambiente_capacidad, ambiente_categoria, ambiente_estado, ambiente_imagen_disponible, ambiente_imagen_pendiente, ambiente_imagen_ocupado, ambiente_imagen_ubicacion_en_piso, ambiente_filas, ambiente_columnas, ambiente_descuento, ambiente_fecha_partido) VALUES ( '$ambiente_evento', '$ambiente_piso', '$ambiente_nombre', '$ambiente_capacidad', '$ambiente_categoria', '$ambiente_estado', '$ambiente_imagen_disponible', '$ambiente_imagen_pendiente', '$ambiente_imagen_ocupado', '$ambiente_imagen_ubicacion_en_piso', '$ambiente_filas', '$ambiente_columnas', '$ambiente_descuento', $fechaPartidoSql)";
+		$query = "INSERT INTO ambientes( ambiente_evento, ambiente_piso, ambiente_nombre, ambiente_capacidad, ambiente_categoria, ambiente_estado, ambiente_imagen_disponible, ambiente_imagen_pendiente, ambiente_imagen_ocupado, ambiente_imagen_ubicacion_en_piso, ambiente_filas, ambiente_columnas, ambiente_descuento, ambiente_fecha_partido, ambiente_precio_silla) VALUES ( '$ambiente_evento', '$ambiente_piso', '$ambiente_nombre', '$ambiente_capacidad', '$ambiente_categoria', '$ambiente_estado', '$ambiente_imagen_disponible', '$ambiente_imagen_pendiente', '$ambiente_imagen_ocupado', '$ambiente_imagen_ubicacion_en_piso', '$ambiente_filas', '$ambiente_columnas', '$ambiente_descuento', $fechaPartidoSql, $precioSillaSql)";
 		$res = $this->_conn->query($query);
 		return mysqli_insert_id($this->_conn->getConnection());
 	}
@@ -69,8 +72,11 @@ class Administracion_Model_DbTable_Ambientes extends Db_Table
 		$ambiente_descuento = $data['ambiente_descuento'] ?? 0;
 		$ambiente_fecha_partido = $data['ambiente_fecha_partido'] ?? null;
 		$fechaPartidoSql = $ambiente_fecha_partido ? "'$ambiente_fecha_partido'" : 'NULL';
+		$ambiente_precio_silla = $data['ambiente_precio_silla'] ?? null;
+		$precioSillaSql = ($ambiente_precio_silla !== null && $ambiente_precio_silla !== '')
+			? "'" . (float) $ambiente_precio_silla . "'" : 'NULL';
 
-		$query = "UPDATE ambientes SET  ambiente_evento = '$ambiente_evento', ambiente_piso = '$ambiente_piso', ambiente_nombre = '$ambiente_nombre', ambiente_capacidad = '$ambiente_capacidad', ambiente_categoria = '$ambiente_categoria', ambiente_estado = '$ambiente_estado', ambiente_imagen_disponible = '$ambiente_imagen_disponible', ambiente_imagen_pendiente = '$ambiente_imagen_pendiente', ambiente_imagen_ocupado = '$ambiente_imagen_ocupado', ambiente_imagen_ubicacion_en_piso = '$ambiente_imagen_ubicacion_en_piso', ambiente_filas = '$ambiente_filas', ambiente_columnas = '$ambiente_columnas', ambiente_descuento = '$ambiente_descuento', ambiente_fecha_partido = $fechaPartidoSql WHERE ambiente_id = '" . $id . "'";
+		$query = "UPDATE ambientes SET  ambiente_evento = '$ambiente_evento', ambiente_piso = '$ambiente_piso', ambiente_nombre = '$ambiente_nombre', ambiente_capacidad = '$ambiente_capacidad', ambiente_categoria = '$ambiente_categoria', ambiente_estado = '$ambiente_estado', ambiente_imagen_disponible = '$ambiente_imagen_disponible', ambiente_imagen_pendiente = '$ambiente_imagen_pendiente', ambiente_imagen_ocupado = '$ambiente_imagen_ocupado', ambiente_imagen_ubicacion_en_piso = '$ambiente_imagen_ubicacion_en_piso', ambiente_filas = '$ambiente_filas', ambiente_columnas = '$ambiente_columnas', ambiente_descuento = '$ambiente_descuento', ambiente_fecha_partido = $fechaPartidoSql, ambiente_precio_silla = $precioSillaSql WHERE ambiente_id = '" . $id . "'";
 		$res = $this->_conn->query($query);
 	}
 }

@@ -50,26 +50,33 @@
           <?php endif; ?>
         </div>
 
+        <?php $esSillaAviso = ($this->esModoSilla); ?>
         <?php if ($this->mesaInfo): ?>
           <div class="rs-card-header av-sub-header">
-            <i class="fa-solid fa-table me-2"></i>
-            <h5>Mesa<?= count($this->mesaInfo) != 1 ? 's' : '' ?> reservada<?= count($this->mesaInfo) != 1 ? 's' : '' ?></h5>
+            <i class="fa-solid <?= $esSillaAviso ? 'fa-chair' : 'fa-table' ?> me-2"></i>
+            <h5>
+              <?= $esSillaAviso ? 'Silla' : 'Mesa' ?><?= count($this->mesaInfo) != 1 ? 's' : '' ?>
+              reservada<?= count($this->mesaInfo) != 1 ? 's' : '' ?>
+            </h5>
           </div>
           <div class="rs-card-body p-0">
             <?php foreach ($this->mesaInfo as $index => $mesa): ?>
               <?php
-              $mesaNombre = $mesa->mesa_nombre ?: ($mesa->mesa_codigo ? 'Mesa ' . $mesa->mesa_codigo : 'Mesa #' . $mesa->mesa_id);
+              $etiquetaTipo = $esSillaAviso ? 'Silla' : 'Mesa';
+              $mesaNombre = $mesa->mesa_nombre ?: ($mesa->mesa_codigo ? "$etiquetaTipo {$mesa->mesa_codigo}" : "$etiquetaTipo #{$mesa->mesa_id}");
               $pisoNombre = $mesa->piso_nombre ?: '';
               ?>
               <div class="rs-mesa-bloque">
                 <div class="rs-mesa-dato">
-                  <span class="rs-mesa-key">Mesa</span>
+                  <span class="rs-mesa-key"><?= $etiquetaTipo ?></span>
                   <span class="rs-mesa-val"><?= htmlspecialchars($mesaNombre) ?></span>
                 </div>
-                <div class="rs-mesa-dato">
-                  <span class="rs-mesa-key">Capacidad</span>
-                  <span class="rs-mesa-val"><?= (int) $mesa->mesa_capacidad ?> personas</span>
-                </div>
+                <?php if (!$esSillaAviso): ?>
+                  <div class="rs-mesa-dato">
+                    <span class="rs-mesa-key">Capacidad</span>
+                    <span class="rs-mesa-val"><?= (int) $mesa->mesa_capacidad ?> personas</span>
+                  </div>
+                <?php endif; ?>
                 <?php if ($pisoNombre): ?>
                   <div class="rs-mesa-dato">
                     <span class="rs-mesa-key">Piso</span>

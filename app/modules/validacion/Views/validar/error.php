@@ -256,7 +256,7 @@ if (($this->reserva) && ($this->reserva->boleta_compra_fecha)) {
                         <div class="stat-content-mini">
                           <div class="stat-label-mini">Ambiente</div>
                           <div class="stat-value-mini">
-                            <?= isset($this->mesaInfo->ambiente_nombre) ? $this->mesaInfo->ambiente_nombre : 'No disponible' ?>
+                            <?= ($this->mesaInfo->ambiente_nombre) ? $this->mesaInfo->ambiente_nombre : 'No disponible' ?>
                           </div>
                         </div>
                       </div>
@@ -267,9 +267,9 @@ if (($this->reserva) && ($this->reserva->boleta_compra_fecha)) {
                           <i class="fas fa-chair"></i>
                         </div>
                         <div class="stat-content-mini">
-                          <div class="stat-label-mini">Mesa asignada</div>
+                          <div class="stat-label-mini"><?= (($this->mesaInfo->mesa_tipo) && $this->mesaInfo->mesa_tipo === 'silla') ? 'Silla asignada' : 'Mesa asignada' ?></div>
                           <div class="stat-value-mini">
-                            <?= isset($this->mesaInfo->mesa_nombre) ? $this->mesaInfo->mesa_nombre : 'No disponible' ?>
+                            <?= ($this->mesaInfo->mesa_nombre) ? $this->mesaInfo->mesa_nombre : 'No disponible' ?>
                           </div>
                         </div>
                       </div>
@@ -282,7 +282,7 @@ if (($this->reserva) && ($this->reserva->boleta_compra_fecha)) {
                         <div class="stat-content-mini">
                           <div class="stat-label-mini">Piso</div>
                           <div class="stat-value-mini">
-                            <?= isset($this->mesaInfo->piso_nombre) ? $this->mesaInfo->piso_nombre : 'No disponible' ?>
+                            <?= ($this->mesaInfo->piso_nombre) ? $this->mesaInfo->piso_nombre : 'No disponible' ?>
                           </div>
                         </div>
                       </div>

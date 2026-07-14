@@ -490,7 +490,7 @@ class Page_loginController extends Page_mainController
           // echo json_encode($response);
           // return;
         }
-        if ($estado == 1 && !$redirect) {
+        if (($estado == 1 || $estado == 4) && !$redirect) {
           $response = [
             'status' => 'error',
             'error' => 'reservation_found',
