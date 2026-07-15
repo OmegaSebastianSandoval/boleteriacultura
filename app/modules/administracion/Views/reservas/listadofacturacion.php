@@ -781,11 +781,15 @@ $estadometodo = [
             }
             historial.forEach(function (item) {
               var tr = document.createElement('tr');
+              var notaBoleta = item.boleta_anulada
+                ? '<br><span class="badge text-bg-danger mt-1"><i class="fas fa-ticket-alt"></i> Boleta cancelada por cambio de tipo</span>'
+                : '';
               tr.innerHTML =
                 '<td style="white-space:nowrap;">' + escapeHtml(item.fecha) + '</td>' +
                 '<td><span class="badge text-bg-secondary">' + escapeHtml(item.estado_anterior) + '</span> ' +
                 '<i class="fas fa-arrow-right mx-1"></i> ' +
-                '<span class="badge text-bg-success">' + escapeHtml(item.estado_nuevo) + '</span></td>' +
+                '<span class="badge text-bg-success">' + escapeHtml(item.estado_nuevo) + '</span>' +
+                notaBoleta + '</td>' +
                 '<td>' + escapeHtml(item.usuario) + '</td>';
               tbody.appendChild(tr);
             });

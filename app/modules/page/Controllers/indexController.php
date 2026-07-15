@@ -173,6 +173,20 @@ class Page_indexController extends Page_mainController
       }
     }
 
+    // Mesas bloqueadas vencidas (mesa_bloqueo_fecha_expiracion): a diferencia de los
+    // beneficiarios, antes no había barrido directo por expiración, solo indirecto vía
+    // reserva_documento cuando la reserva asociada vencía. Eso dejaba bloqueos huérfanos
+    // marcando capacidades como "Agotado" para todos los usuarios indefinidamente.
+    $mesasBloqueadasVencidas = $mesasBloqueadasModel->getList("mesa_bloqueo_estado = '1' AND mesa_bloqueo_fecha_expiracion < '$fechaActual'", "");
+    if ($mesasBloqueadasVencidas && is_countable($mesasBloqueadasVencidas) && count($mesasBloqueadasVencidas) > 0) {
+      foreach ($mesasBloqueadasVencidas as $mesaBloqueadaVencida) {
+        $mesasBloqueadasModel->deleteRegister($mesaBloqueadaVencida->mesa_bloqueo_id);
+        $logData['log_log'] = "Mesa bloqueada vencida eliminada. Bloqueo ID: {$mesaBloqueadaVencida->mesa_bloqueo_id}, Capacidad: {$mesaBloqueadaVencida->mesa_bloqueo_capacidad}";
+        $logData['log_tipo'] = 'LIMPIAR RESERVAS - MESA BLOQUEADA VENCIDA ELIMINADA';
+        $logModel->insert($logData);
+      }
+    }
+
     // Log de fin
     $logData['reserva_id'] = null;
     $logData['log_log'] = "Finalizó limpiarreservasAction a las " . date('Y-m-d H:i:s');
@@ -599,9 +613,36 @@ class Page_indexController extends Page_mainController
     } else {
       $textoQR = RUTA . "/validacion?uid={$uid}&token={$token}";
     }
-    $rutaQR = "images_sales/qrs_news/{$uid}.png";
+    // Ruta absoluta: la plantilla del PDF (generarpdfnew.php) lee el PNG desde
+    // PUBLIC_PATH; con ruta relativa dependiente del cwd del proceso PHP podían
+    // no coincidir y el QR quedar en blanco en el PDF.
+    $rutaQR = PUBLIC_PATH . "images_sales/qrs_news/{$uid}.png";
     QRcode::png($textoQR, $rutaQR, "Q", 5, 3);
+    $this->normalizarPngQR($rutaQR);
     return $rutaQR;
+  }
+
+  /**
+   * phpqrcode genera PNGs de 1 bit por píxel; el parser nativo de PNG de TCPDF no maneja
+   * bien esa profundidad y el QR queda en blanco al embeberlo, aunque el archivo exista.
+   * Se regraba con GD como PNG truecolor estándar (mismo contenido, 8 bits) para TCPDF.
+   */
+  private function normalizarPngQR($ruta)
+  {
+    if (!file_exists($ruta) || !function_exists('imagecreatefrompng')) {
+      return;
+    }
+    $img = @imagecreatefrompng($ruta);
+    if (!$img) {
+      return;
+    }
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $normalizado = imagecreatetruecolor($w, $h);
+    imagecopy($normalizado, $img, 0, 0, 0, 0, $w, $h);
+    imagedestroy($img);
+    imagepng($normalizado, $ruta);
+    imagedestroy($normalizado);
   }
 
   private function generarPDFReenvio($reserva, $boleta, $mesasInfo, $invitado)

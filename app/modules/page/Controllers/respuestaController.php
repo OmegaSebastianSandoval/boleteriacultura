@@ -208,6 +208,22 @@ class Page_respuestaController extends Page_mainController
             $invitado->precio_boleta = $precio;
             $totalGeneral += $precio;
         }
+
+        // Si la reserva no tiene mesa/silla asociada (p.ej. el pago quedó fallido o
+        // rechazado: procesarEstadoPago() libera la mesa y pone reserva_mesa_id = 0),
+        // no hay categoría de la cual sacar el precio y el bucle de arriba deja todo en
+        // $0, aunque la reserva sí tiene guardado el total que se intentó cobrar
+        // (reserva_total_pagar no se borra al liberar la mesa). Se usa ese total como
+        // respaldo y se reparte en partes iguales solo para no mostrar $0 por invitado.
+        if (empty($mesaInfo) && (float) $reserva->reserva_total_pagar > 0) {
+            $totalGeneral = (float) $reserva->reserva_total_pagar;
+            $totalPersonas = count($invitados) ?: 1;
+            $precioPromedio = $totalGeneral / $totalPersonas;
+            foreach ($invitados as $invitado) {
+                $invitado->precio_boleta = $precioPromedio;
+            }
+        }
+
         $totalPagar = $totalGeneral;
 
         $descuento = $mesaInfo[0]->ambiente_descuento ?? 0;

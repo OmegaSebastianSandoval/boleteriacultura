@@ -101,8 +101,8 @@
     <div class="av-note">
       <i class="fas fa-info-circle me-2"></i>
       <span>
-        Le agradecemos diligenciar la información requerida para el registro de sus invitados, la factura electrónica y el menú gastronómico.
-        En caso de no haber finalizado el proceso, podrá completarlo iniciando sesión nuevamente en la plataforma.
+        Le agradecemos diligenciar la información requerida para el <strong>registro de sus invitados.</strong>
+        Si no puede ingresar ahora, el link será enviado también a su correo electrónico.
       </span>
     </div>
 
@@ -415,15 +415,14 @@
   }
 
   .av-btn-ghost {
-    background: rgba(255, 255, 255, 0.07);
+    background: #4CAF50;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    color: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    color: #fff !important;
   }
 
   .av-btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.13);
+    background: #43a047;
+    transform: translateY(-1px);
     color: #fff !important;
   }
 

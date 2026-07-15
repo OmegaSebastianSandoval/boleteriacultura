@@ -1582,19 +1582,18 @@
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #ffc107;
+    border: 1px solid #e6ac00;
     border-radius: 20px;
     padding: 6px 16px 6px 12px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: border-color 0.4s ease;
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.25);
+    transition: border-color 0.4s ease, background 0.4s ease;
   }
-  .rv-timer-icon { font-size: 0.78rem; color: #ffc107; flex-shrink: 0; }
+  .rv-timer-icon { font-size: 0.78rem; color: #111; flex-shrink: 0; }
   .rv-timer-display {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #ffffff;
+    color: #111;
     letter-spacing: 2px;
     line-height: 1;
   }
@@ -1603,15 +1602,17 @@
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1.8px;
-    color: white;
+    color: #111;
     font-weight: 600;
   }
+  /* Urgency state (applied via JS): pasa de amarillo a rojo cuando quedan < 3 min */
   .rv-timer.urgent {
-    border-color: rgba(220, 53, 69, 0.55);
-    background: rgba(220, 53, 69, 0.1);
+    background: #dc3545;
+    border-color: #b02a37;
   }
   .rv-timer.urgent .rv-timer-icon,
-  .rv-timer.urgent .rv-timer-display { color: #ef9a9a; }
+  .rv-timer.urgent .rv-timer-display,
+  .rv-timer.urgent .rv-timer-label { color: #ffffff; }
   @keyframes rv-blink { 50% { opacity: 0.1; } }
 
   /* ── Persons tag ── */
@@ -1937,19 +1938,19 @@
   }
 
   .rm-confirm-btn {
-    background: #ffc107 !important;
-    border: none !important; color: #111 !important;
+    background: #4CAF50 !important;
+    border: none !important; color: #fff !important;
     font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
     font-size: 0.82rem; padding: 13px 36px;
     border-radius: 20px; min-height: 48px;
     transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-    box-shadow: 0 3px 12px rgba(255, 193, 7, 0.3);
+    box-shadow: 0 3px 12px rgba(76, 175, 80, 0.35);
   }
   .rm-confirm-btn:hover:not(:disabled) {
-    background: #e6ac00 !important;
+    background: #43a047 !important;
     transform: translateY(-1px);
-    box-shadow: 0 5px 18px rgba(255, 193, 7, 0.45);
-    color: #111 !important;
+    box-shadow: 0 5px 18px rgba(76, 175, 80, 0.5);
+    color: #fff !important;
   }
   .rm-confirm-btn:disabled {
     background: rgba(255, 255, 255, 0.07) !important;
@@ -2007,9 +2008,9 @@
   }
   .ambiente-card:hover { border-color: rgba(255, 193, 7, 0.65); background: rgba(255, 193, 7, 0.06); }
   .ambiente-card.activo {
-    border-color: #ffc107;
-    background: rgba(255, 193, 7, 0.07);
-    box-shadow: 0 0 0 2.5px rgba(255, 193, 7, 0.22);
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 0 2.5px rgba(76, 175, 80, 0.25);
   }
   .ambiente-card-body { display: flex; flex-direction: column; gap: 5px; }
   .ambiente-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -2020,8 +2021,8 @@
   }
   .ambiente-fecha { font-size: 0.88rem; font-weight: 600; color: #fff; }
   .ambiente-countdown { font-size: 0.69rem; color: rgba(255, 255, 255, 0.4); font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
-  .ambiente-card.activo .ambiente-num { background: rgba(255, 193, 7, 0.35); }
-  .ambiente-card.activo .ambiente-countdown { color: #ffc107; }
+  .ambiente-card.activo .ambiente-num { background: rgba(76, 175, 80, 0.4); color: #eaffea; }
+  .ambiente-card.activo .ambiente-countdown { color: #66bb6a; }
   .ambiente-card-disabled { cursor: not-allowed; opacity: 0.4; background: rgba(255, 255, 255, 0.02); pointer-events: none; }
   .ambiente-sin-disp { font-size: 0.69rem; font-weight: 600; color: #ef9a9a; letter-spacing: 0.2px; }
 

@@ -834,6 +834,110 @@
     document.getElementById('restart-scanner').style.display = 'none';
   }
 
+  /* ==== VERIFICACIÓN / SOLICITUD DE PERMISO DE CÁMARA ====
+     Html5QrcodeScanner no avisa de forma clara cuando el permiso de cámara
+     falla o no se puede solicitar; por eso se pide explícitamente con
+     getUserMedia y se informa al usuario el motivo exacto. */
+  function verificarSoporteCamara () {
+    if (!window.isSecureContext) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Conexión no segura',
+        html: 'El escaneo por cámara requiere una conexión segura (HTTPS). Contacte al administrador o utilice el ingreso manual / lector USB mientras tanto.',
+        confirmButtonText: 'Entendido'
+      });
+      return false;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Cámara no disponible',
+        html: 'Este navegador no soporta el acceso a la cámara. Utilice el ingreso manual o el lector USB.',
+        confirmButtonText: 'Entendido'
+      });
+      return false;
+    }
+    return true;
+  }
+
+  function solicitarPermisoCamara () {
+    if (!verificarSoporteCamara()) {
+      document.getElementById('restart-scanner').style.display = 'block';
+      return;
+    }
+
+    // Si el navegador ya tiene el permiso en estado "denied" (bloqueado por el
+    // usuario en un intento anterior), getUserMedia() rechaza de inmediato SIN
+    // volver a mostrar el aviso nativo — por eso hay que detectar ese caso
+    // aparte y explicarle al usuario cómo desbloquearlo manualmente.
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'camera' })
+        .then(function (status) {
+          manejarEstadoPermisoCamara(status.state);
+          // En navegadores compatibles (p. ej. Chrome), si el usuario cambia el
+          // permiso desde la configuración del sitio sin recargar, este evento
+          // permite reintentar automáticamente.
+          status.onchange = function () {
+            manejarEstadoPermisoCamara(status.state);
+          };
+        })
+        .catch(function () {
+          // Firefox y otros navegadores no soportan 'camera' en la Permissions API.
+          intentarAccederCamara();
+        });
+    } else {
+      intentarAccederCamara();
+    }
+  }
+
+  function manejarEstadoPermisoCamara (state) {
+    if (state === 'denied') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Cámara bloqueada para este sitio',
+        html: 'El navegador tiene el permiso de cámara <strong>bloqueado</strong> para este sitio, por eso no vuelve a mostrar el aviso para activarla.<br><br>' +
+          'Para desbloquearla: haga clic en el ícono de candado / información junto a la dirección del sitio, busque <strong>Cámara</strong> y cambie el permiso a <strong>Permitir</strong>. Luego recargue esta página.<br><br>' +
+          'Mientras tanto puede usar el lector USB o el ingreso manual.',
+        confirmButtonText: 'Recargar página',
+        showCancelButton: true,
+        cancelButtonText: 'Cerrar'
+      }).then(function (result) {
+        if (result.isConfirmed) location.reload();
+      });
+      document.getElementById('restart-scanner').style.display = 'block';
+      return;
+    }
+    // 'granted' o 'prompt': intentar acceder (si es 'prompt', esto dispara el aviso nativo del navegador)
+    intentarAccederCamara();
+  }
+
+  function intentarAccederCamara () {
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function (stream) {
+        // Se detiene este stream de prueba; Html5QrcodeScanner abre el suyo propio.
+        stream.getTracks().forEach(function (track) { track.stop(); });
+        startCameraScanner();
+      })
+      .catch(function (err) {
+        console.error('Permiso de cámara no concedido:', err);
+        let mensaje = 'No se pudo acceder a la cámara.';
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          mensaje = 'Debe conceder el permiso de acceso a la cámara desde la configuración del navegador para poder escanear boletas. Mientras tanto puede usar el lector USB o el ingreso manual.';
+        } else if (err.name === 'NotFoundError') {
+          mensaje = 'No se detectó ninguna cámara en este dispositivo.';
+        } else if (err.name === 'NotReadableError') {
+          mensaje = 'La cámara está siendo utilizada por otra aplicación.';
+        }
+        Swal.fire({
+          icon: 'warning',
+          title: 'Permiso de cámara requerido',
+          html: mensaje,
+          confirmButtonText: 'Entendido'
+        });
+        document.getElementById('restart-scanner').style.display = 'block';
+      });
+  }
+
   /* ==== ESCÁNER POR LECTOR FÍSICO (USB) ==== */
   const input = document.getElementById("scanner-input");
 
@@ -858,10 +962,10 @@
   input.focus();
 
   /* === ARRANCAR AMBOS ESCÁNERES === */
-  startCameraScanner();
+  solicitarPermisoCamara();
 
   // Evento para reiniciar cámara
-  document.getElementById('restart-scanner').addEventListener('click', startCameraScanner);
+  document.getElementById('restart-scanner').addEventListener('click', solicitarPermisoCamara);
 
   // Evento para abrir modal de ingreso manual
   document.getElementById('manual-entry-btn').addEventListener('click', function (e) {

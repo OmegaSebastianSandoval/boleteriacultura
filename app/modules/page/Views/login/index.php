@@ -33,8 +33,8 @@
                                     <div class="help-block with-errors"></div>
                                 </div>
                                 <div class="col-12">
-                                    <a href="https://clubelnogal.com/recordar-zona-privada/" class="justify-content-center ahref" target="_blank">
-                                        ¿Asignar o recuperar contraseña?
+                                    <a href="https://clubelnogal.com/recordar-zona-privada/" class="justify-content-center ahref link-subrayado" target="_blank">
+                                        Asignar o recuperar contraseña
                                     </a>
                                 </div>
                                 <?php if ($this->idRes && $this->idRes >= 1): ?>
@@ -46,6 +46,12 @@
                                 <div id="loaderLine" style="display: none; margin-top: 15px;">
                                     <div class="loader"></div>
                                     <p class="text-center mt-2">Validando credenciales...</p>
+                                </div>
+                                <div class="col-12">
+                                    <div class="alert alert-info text-center mb-3 py-2" role="alert">
+                                        <i class="fa-solid fa-circle-info me-1"></i>
+                                        Ingresa con el mismo usuario y contraseña que utilizas en la página web o la aplicación del Club.
+                                    </div>
                                 </div>
                             </div>
                         </form>
@@ -164,6 +170,26 @@
 
     .form-label {
         font-weight: 600;
+    }
+
+    /* Verde pastel solo para el botón de esta vista (no toca la clase .btn-login
+       global, que también usa el template de login legado). */
+    #btnSubmit.btn-login {
+        background-color: #b3e6c0;
+        color: #1b4332;
+    }
+    #btnSubmit.btn-login:hover,
+    #btnSubmit.btn-login:focus {
+        background-color: #9ed9ae;
+        color: #1b4332;
+    }
+
+    .alert-info {
+        font-size: 0.8rem;
+    }
+
+    .link-subrayado {
+        text-decoration: underline !important;
     }
 
     @media screen and (max-width: 985px) {

@@ -72,16 +72,18 @@ $precio = $this->reserva->reserva_total_pagar;
           <td width="100%">
             <?php
             // Verificar primero en la ruta de QRs nuevos
-            $rutaQRNueva = "/images_sales/qrs_news/" . $this->boleta->boleta_uid . ".png";
-            // Verificar en la ruta de QRs originales  
-            $rutaQROriginal = "/images_sales/qrs/" . $this->boleta->boleta_uid . ".png";
+            $rutaQRNueva = PUBLIC_PATH . "images_sales/qrs_news/" . $this->boleta->boleta_uid . ".png";
+            // Verificar en la ruta de QRs originales
+            $rutaQROriginal = PUBLIC_PATH . "images_sales/qrs/" . $this->boleta->boleta_uid . ".png";
 
             $rutaQRFinal = $rutaQRNueva; // Por defecto usar la nueva
-            
-            // Verificar cuál existe físicamente
-            if (file_exists($_SERVER['DOCUMENT_ROOT'] . $rutaQRNueva)) {
+
+            // Verificar cuál existe físicamente (rutas absolutas: TCPDF no resuelve
+            // rutas que empiezan con "/" contra el document root del servidor web,
+            // las trata como ruta de sistema de archivos)
+            if (file_exists($rutaQRNueva)) {
               $rutaQRFinal = $rutaQRNueva;
-            } elseif (file_exists($_SERVER['DOCUMENT_ROOT'] . $rutaQROriginal)) {
+            } elseif (file_exists($rutaQROriginal)) {
               $rutaQRFinal = $rutaQROriginal;
             }
             ?>

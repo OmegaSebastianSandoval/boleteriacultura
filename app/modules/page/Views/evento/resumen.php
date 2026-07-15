@@ -524,19 +524,18 @@ if ($this->mesaInfo && $this->categoria) {
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #ffc107;
+    border: 1px solid #e6ac00;
     border-radius: 20px;
     padding: 6px 16px 6px 12px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: border-color 0.4s ease;
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.25);
+    transition: border-color 0.4s ease, background 0.4s ease;
   }
-  .rv-timer-icon { font-size: 0.78rem; color: #ffc107; flex-shrink: 0; }
+  .rv-timer-icon { font-size: 0.78rem; color: #111; flex-shrink: 0; }
   .rv-timer-display {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #ffffff;
+    color: #111;
     letter-spacing: 2px;
     line-height: 1;
   }
@@ -545,15 +544,17 @@ if ($this->mesaInfo && $this->categoria) {
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1.8px;
-    color: white;
+    color: #111;
     font-weight: 600;
   }
+  /* Urgency state (applied via JS): pasa de amarillo a rojo cuando quedan < 3 min */
   .rv-timer.urgent {
-    border-color: rgba(220, 53, 69, 0.55);
-    background: rgba(220, 53, 69, 0.1);
+    background: #dc3545;
+    border-color: #b02a37;
   }
   .rv-timer.urgent .rv-timer-icon,
-  .rv-timer.urgent .rv-timer-display { color: #ef9a9a; }
+  .rv-timer.urgent .rv-timer-display,
+  .rv-timer.urgent .rv-timer-label { color: #ffffff; }
   @keyframes rv-blink { 50% { opacity: 0; } }
 
   /* ── SCROLLABLE BODY ── */
@@ -734,6 +735,15 @@ if ($this->mesaInfo && $this->categoria) {
     transform: translateY(-1px);
     box-shadow: 0 5px 18px rgba(255, 193, 7, 0.45);
   }
+  .rs-pay-btn.ready {
+    background: #4CAF50;
+    color: #fff !important;
+    box-shadow: 0 3px 12px rgba(76, 175, 80, 0.35);
+  }
+  .rs-pay-btn.ready:hover:not(:disabled) {
+    background: #43a047;
+    box-shadow: 0 5px 18px rgba(76, 175, 80, 0.5);
+  }
   .rs-pay-btn:disabled {
     background: rgba(255, 255, 255, 0.07) !important;
     color: rgba(255, 255, 255, 0.2) !important;
@@ -811,6 +821,23 @@ if ($this->mesaInfo && $this->categoria) {
 
     const cuotasWrapper = document.getElementById('cuotasFieldWrapper');
 
+    // Refleja en el botón (amarillo -> verde) si ya están dadas todas las
+    // condiciones para pagar: términos aceptados, método elegido y, si aplica, cuotas.
+    function actualizarEstadoBotonPago () {
+      const todosAceptados = checkboxesTerminos.length === 0 || Array.from(checkboxesTerminos).every(checkbox => checkbox.checked);
+      const metodoPago = selectMetodo.value;
+      let cuotasOk = true;
+      if (metodoPago === 'cargo' && selectCuotas && selectCuotas.tagName === 'SELECT') {
+        cuotasOk = !!selectCuotas.value;
+      }
+      const listo = todosAceptados && !!metodoPago && cuotasOk;
+      btnProcederPago.classList.toggle('ready', listo);
+    }
+
+    checkboxesTerminos.forEach(function (checkbox) {
+      checkbox.addEventListener('change', actualizarEstadoBotonPago);
+    });
+
     selectMetodo.addEventListener('change', function () {
       const metodoPago = this.value;
       if (selectCuotas && selectCuotas.tagName === 'SELECT') {
@@ -820,13 +847,17 @@ if ($this->mesaInfo && $this->categoria) {
       }
       metodoPagoHidden.value = metodoPago;
       numeroCuotasHidden.value = '';
+      actualizarEstadoBotonPago();
     });
 
     if (selectCuotas && selectCuotas.tagName === 'SELECT') {
       selectCuotas.addEventListener('change', function () {
         numeroCuotasHidden.value = this.value;
+        actualizarEstadoBotonPago();
       });
     }
+
+    actualizarEstadoBotonPago();
 
     // Valida el formulario al momento del click e indica puntualmente qué falta
     function validarAntesDePagar () {

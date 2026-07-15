@@ -64,7 +64,7 @@ $invitadoDocumentoPdf = $this->invitado->documento_invitado ?? '';
         <tr>
           <!-- Celda con el identificador -->
           <td width="100%" style="text-align: center;">
-            <img src="<?= "/images_sales/qrs_news/" . $boletaUidPdf . ".png" ?>" alt="qr" width="150"
+            <img src="<?= PUBLIC_PATH . "images_sales/qrs_news/" . $boletaUidPdf . ".png" ?>" alt="qr" width="150"
               height="150" />
           </td>
         </tr>

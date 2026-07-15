@@ -123,12 +123,30 @@ class Page_guestsController extends Page_mainController
     $boletasModel = new Administracion_Model_DbTable_Boletasinfo();
     $boletasReserva = $boletasModel->getList("boleta_reserva_id = '$id'", "");
     $boletasPorInvitado = [];
+    $boletasAnuladasPorInvitado = [];
     foreach ($boletasReserva as $b) {
-      if ($b->boleta_asignacion) $boletasPorInvitado[$b->boleta_asignacion] = $b;
+      if (!$b->boleta_asignacion) continue;
+      // boleta_estado 3 = anulada (p.ej. por cambio de tipo de invitado): no cuenta como
+      // "enviada", así el invitado puede volver a recibir una boleta nueva.
+      if ((int) $b->boleta_estado === 3) {
+        $boletasAnuladasPorInvitado[$b->boleta_asignacion] = $b;
+      } else {
+        $boletasPorInvitado[$b->boleta_asignacion] = $b;
+      }
     }
     foreach ($invitados as $invitado) {
       $invitado->principal = $invitado->documento_invitado == $reserva->reserva_documento;
       $invitado->boleta_enviada = isset($boletasPorInvitado[$invitado->id_invitado]);
+      $invitado->boleta_uid = $boletasPorInvitado[$invitado->id_invitado]->boleta_uid ?? null;
+      // Solo se permite un (1) reenvío por boleta; boleta_reenvio queda en 1 una vez usado ese reenvío.
+      $invitado->boleta_reenvio_agotado = $invitado->boleta_enviada
+        && (int) ($boletasPorInvitado[$invitado->id_invitado]->boleta_reenvio ?? 0) === 1;
+      // Boleta anulada (p.ej. por cambio de tipo) y aún sin una nueva enviada: mostrar el
+      // motivo al socio y dejar el envío habilitado de nuevo.
+      $invitado->boleta_anulada = !$invitado->boleta_enviada && isset($boletasAnuladasPorInvitado[$invitado->id_invitado]);
+      $invitado->boleta_anulada_motivo = $invitado->boleta_anulada
+        ? ($boletasAnuladasPorInvitado[$invitado->id_invitado]->boleta_observaciones ?: 'La boleta fue anulada.')
+        : null;
     }
     $errorBoleta = Session::getInstance()->get('errorBoleteria');
     if ($errorBoleta) {
@@ -407,7 +425,7 @@ class Page_guestsController extends Page_mainController
 
     $facturaCompleta = $reserva->reserva_fact_nit && $reserva->reserva_fact_razon && $reserva->reserva_fact_mail && $reserva->reserva_fact_dire && $reserva->reserva_fact_tele;
     if (!$facturaCompleta) {
-      echo json_encode(['status' => false, 'message' => 'Debe diligenciar los datos de factura electrónica antes de enviar boletas.']);
+      echo json_encode(['status' => false, 'message' => 'Para recibir su boleta, es indispensable diligenciar los datos de facturación electrónica. Por favor, utilice el botón ubicado en la parte inferior de su pantalla para completar el registro. (INGRESAR DATOS PARA FACTURA ELECTRÓNICA)']);
       return;
     }
 
@@ -419,11 +437,23 @@ class Page_guestsController extends Page_mainController
     }
 
     $boletasModel = new Administracion_Model_DbTable_Boletasinfo();
-    $boletaExistente = $boletasModel->getList("boleta_asignacion = '$idInvitado'", "")[0] ?? null;
+    // boleta_estado 3 = anulada (p.ej. por cambio de tipo de invitado): no debe contar como
+    // "boleta existente" para reenvío, sino que se debe generar una boleta nueva.
+    $boletaExistente = $boletasModel->getList("boleta_asignacion = '$idInvitado' AND boleta_estado != 3", "")[0] ?? null;
+
+    // Solo se permite un (1) reenvío por boleta.
+    if ($boletaExistente && (int) $boletaExistente->boleta_reenvio === 1) {
+      echo json_encode([
+        'status' => false,
+        'message' => 'Esta boleta ya fue reenviada anteriormente. No es posible reenviarla de nuevo.',
+        'limite_alcanzado' => true,
+      ]);
+      return;
+    }
 
     // Si aún no tiene boleta, validamos y guardamos sus datos antes de generarla
     if (!$boletaExistente) {
-      if (strlen($nombre) < 3 || strlen($apellido) < 1) {
+      if (strlen($nombre) < 1 || strlen($apellido) < 1) {
         echo json_encode(['status' => false, 'message' => 'Nombre y apellido deben tener mínimo 3 caracteres.']);
         return;
       }
@@ -585,10 +615,20 @@ class Page_guestsController extends Page_mainController
       'log_tipo' => 'ENVIO_BOLETA_INDIVIDUAL'
     ]);
 
+    // Si esto era un reenvío y el correo salió bien, se consume el único reenvío permitido.
+    $reenvioAgotado = false;
+    if ($boletaExistente && $res) {
+      $boletasModel->editField($boleta->boleta_id, 'boleta_reenvio', 1);
+      $boletasModel->editField($boleta->boleta_id, 'boleta_reenvio_fecha', date('Y-m-d H:i:s'));
+      $reenvioAgotado = true;
+    }
+
     echo json_encode([
       'status' => (bool) $res,
       'message' => $res ? 'Boleta enviada correctamente.' : 'Ocurrió un error al enviar el correo.',
-      'reenviada' => (bool) $boletaExistente
+      'reenviada' => (bool) $boletaExistente,
+      'reenvio_agotado' => $reenvioAgotado,
+      'boleta_uid' => $boleta->boleta_uid ?? null,
     ]);
   }
 
@@ -610,9 +650,38 @@ class Page_guestsController extends Page_mainController
       return null; // No disponible
     }
     $textoQR = $documento;
-    $rutaQR = "images_sales/qrs_news/{$uid}.png";
+    // Ruta absoluta: una ruta relativa depende del cwd del proceso PHP, que puede variar
+    // según cómo el hosting invoque el script (rewrite, FPM, etc.), causando que el PNG
+    // se escriba en un lugar distinto de donde el PDF/email luego lo busca.
+    $rutaQR = PUBLIC_PATH . "images_sales/qrs_news/{$uid}.png";
     QRcode::png($textoQR, $rutaQR, "Q", 5, 3);
+    $this->normalizarPngQR($rutaQR);
     return $rutaQR;
+  }
+
+  /**
+   * phpqrcode genera PNGs de 1 bit por píxel (formato mínimo blanco/negro). El parser
+   * nativo de PNG de TCPDF no maneja bien esa profundidad de bit y el QR queda en blanco
+   * al embeberlo en el PDF, aunque el archivo exista y sea válido. Se recarga con GD y se
+   * regraba como PNG truecolor estándar (mismo contenido visual, profundidad de 8 bits)
+   * para que TCPDF lo embeba correctamente.
+   */
+  private function normalizarPngQR($ruta)
+  {
+    if (!file_exists($ruta) || !function_exists('imagecreatefrompng')) {
+      return;
+    }
+    $img = @imagecreatefrompng($ruta);
+    if (!$img) {
+      return;
+    }
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $normalizado = imagecreatetruecolor($w, $h);
+    imagecopy($normalizado, $img, 0, 0, 0, 0, $w, $h);
+    imagedestroy($img);
+    imagepng($normalizado, $ruta);
+    imagedestroy($normalizado);
   }
   public function generarQROLD($uid, $token)
   {

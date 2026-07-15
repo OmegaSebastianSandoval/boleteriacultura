@@ -51,7 +51,7 @@ class Core_placetopayController extends Controllers_Abstract
         $this->logStep($logs, "$prefix - PRE UPDATE APROBADO", "Preparando actualización a APROBADO. ID: $id, Auth: $authorization, Franquicia: $franquicia");
 
         $reservasModel->updatePagoAprobado($id, $authorization, $franquicia);
-        //$this->notificaRegistro($id);
+        $this->notificaRegistro($id);
 
         $this->logStep($logs, "$prefix - PAGO APROBADO", "Pago APROBADO - Estado cambiado de $estadoAnterior a 3. Auth: $authorization");
         $documento = $reserva->reserva_documento;
@@ -71,6 +71,7 @@ class Core_placetopayController extends Controllers_Abstract
         $this->logStep($logs, "$prefix - PRE UPDATE PENDIENTE", "Preparando actualización a PENDIENTE. ID: $id, Auth: $authorization, Franquicia: $franquicia");
 
         $reservasModel->updatePagoPendiente($id, $authorization, $franquicia);
+        $this->notificaRegistro($id);
         $this->logStep($logs, "$prefix - PAGO PENDIENTE", "Pago PENDIENTE - Estado cambiado de $estadoAnterior a 4. Auth: $authorization");
       } else {
         $this->logStep($logs, "$prefix - SIN CAMBIO", "Pago ya estaba PENDIENTE - No se actualiza (estado: $estadoAnterior)");
@@ -82,6 +83,7 @@ class Core_placetopayController extends Controllers_Abstract
         $this->logStep($logs, "$prefix - PRE UPDATE FALLIDO", "Preparando actualización a FALLIDO. ID: $id, Auth: $authorization, Franquicia: $franquicia, Mesa: " . print_r($mesaReserva, true));
 
         $reservasModel->updatePagoFallido($id, $authorization, $franquicia);
+        $this->notificaRegistro($id);
 
         if ($mesaReserva) {
           $mesaIds = explode(',', $mesaReserva); // Convertir en array
@@ -116,6 +118,7 @@ class Core_placetopayController extends Controllers_Abstract
         $this->logStep($logs, "$prefix - PRE UPDATE RECHAZADO", "Preparando actualización a RECHAZADO. ID: $id, Auth: $authorization, Franquicia: $franquicia, Mesa: " . print_r($mesaReserva, true));
 
         $reservasModel->updatePagoRechazado($id, $authorization, $franquicia);
+        $this->notificaRegistro($id);
         if ($mesaReserva) {
           $mesaIds = explode(',', $mesaReserva); // Convertir en array
 
@@ -269,7 +272,7 @@ class Core_placetopayController extends Controllers_Abstract
               $this->logStep($logs, 'PLACETOPAY SONDA - PRE UPDATE APROBADO', "SONDA: Preparando actualización a APROBADO. Datos: ID=$id, Auth=$authorization, Franquicia=$franquicia");
 
               $reservasModel->updatePagoAprobado($id, $authorization, $franquicia);
-              //$this->notificaRegistro($id);
+              $this->notificaRegistro($id);
               $actualizadas++;
 
               $this->logStep($logs, 'PLACETOPAY SONDA - PAGO APROBADO', "SONDA: Pago APROBADO - Estado cambiado de $estadoAnterior a 3. Auth: $authorization");
@@ -290,6 +293,7 @@ class Core_placetopayController extends Controllers_Abstract
               $this->logStep($logs, 'PLACETOPAY SONDA - PRE UPDATE FALLIDO', "SONDA: Preparando actualización a FALLIDO. Datos: ID=$id, Auth=$authorization, Mesa=" . print_r($mesaReserva, true));
 
               $reservasModel->updatePagoFallido($id, $authorization, $franquicia);
+              $this->notificaRegistro($id);
               $actualizadas++;
 
               if ($mesaReserva) {
@@ -323,6 +327,7 @@ class Core_placetopayController extends Controllers_Abstract
               $this->logStep($logs, 'PLACETOPAY SONDA - PRE UPDATE RECHAZADO', "SONDA: Preparando actualización a RECHAZADO. Datos: ID=$id, Auth=$authorization, Mesa=" . print_r($mesaReserva, true));
 
               $reservasModel->updatePagoRechazado($id, $authorization, $franquicia);
+              $this->notificaRegistro($id);
               $actualizadas++;
               if ($mesaReserva) {
                 $mesaIds = explode(',', $mesaReserva); // Convertir en array
@@ -443,8 +448,10 @@ class Core_placetopayController extends Controllers_Abstract
     $reserva = $reservasModel->getById($id);
     $this->logStep($logs, 'NOTIFICA REGISTRO - RESERVA', "Reserva obtenida para notificar: " . print_r($reserva, true));
 
+    // 2/3/11 = Aprobado (cargo/PlaceToPay/datáfono), 4 = Pendiente, 5 = Fallido, 6 = Rechazado.
+    $estadosNotificables = ['2', '3', '4', '5', '6', '11'];
     $resultado = null;
-    if ($reserva->reserva_estado == 2 || $reserva->reserva_estado == 3 || $reserva->reserva_estado == 11) {
+    if (in_array((string) $reserva->reserva_estado, $estadosNotificables, true)) {
       $sendingemail = new Core_Model_Sendingemail($this->_view);
       if ($sendingemail->notificaPago($reserva)) {
         $this->logStep($logs, 'NOTIFICA REGISTRO - EXITO', "Notificación enviada exitosamente para ID: $id");

@@ -1013,25 +1013,24 @@
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #ffc107;
+    border: 1px solid #e6ac00;
     border-radius: 20px;
     padding: 6px 16px 6px 12px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: border-color 0.4s ease;
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.25);
+    transition: border-color 0.4s ease, background 0.4s ease;
   }
 
   .rv-timer-icon {
     font-size: 0.78rem;
-    color: #ffc107;
+    color: #111;
     flex-shrink: 0;
   }
 
   .rv-timer-display {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #ffffff;
+    color: #111;
     letter-spacing: 2px;
     line-height: 1;
   }
@@ -1049,18 +1048,20 @@
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1.8px;
-    color: white;
+    color: #111;
     font-weight: 600;
   }
 
+  /* Urgency state (applied via JS): pasa de amarillo a rojo cuando quedan < 3 min */
   .rv-timer.urgent {
-    border-color: rgba(220, 53, 69, 0.55);
-    background: rgba(220, 53, 69, 0.1);
+    background: #dc3545;
+    border-color: #b02a37;
   }
 
   .rv-timer.urgent .rv-timer-icon,
-  .rv-timer.urgent .rv-timer-display {
-    color: #ef9a9a;
+  .rv-timer.urgent .rv-timer-display,
+  .rv-timer.urgent .rv-timer-label {
+    color: #ffffff;
   }
 
   /* ── Summary bar ── */
@@ -1263,15 +1264,15 @@
   }
 
   .sb-wrap .btn-outline-primary {
-    color: #ffc107 !important;
-    border-color: rgba(255, 193, 7, 0.4) !important;
-    background: rgba(255, 193, 7, 0.1) !important;
+    color: #66bb6a !important;
+    border-color: rgba(76, 175, 80, 0.4) !important;
+    background: rgba(76, 175, 80, 0.1) !important;
   }
 
   .sb-wrap .btn-outline-primary:hover {
-    background: rgba(255, 193, 7, 0.25) !important;
-    border-color: #ffc107 !important;
-    color: #ffd54f !important;
+    background: rgba(76, 175, 80, 0.25) !important;
+    border-color: #4CAF50 !important;
+    color: #81c784 !important;
   }
 
   .sb-wrap .btn-danger {

@@ -101,9 +101,9 @@
                           <?php
                           $alertas = [];
                           if ($reservaexitosa->faltan_invitados)
-                            $alertas[] = '<span class="rv-tag rv-tag-warn"><i class="fas fa-exclamation-triangle"></i> Faltan datos</span>';
+                            $alertas[] = '<span class="rv-tag rv-tag-err"><i class="fas fa-exclamation-triangle"></i> Faltan datos</span>';
                           if (!$reservaexitosa->factura_completa)
-                            $alertas[] = '<span class="rv-tag rv-tag-warn"><i class="fas fa-file-invoice"></i> Falta factura</span>';
+                            $alertas[] = '<span class="rv-tag rv-tag-err"><i class="fas fa-file-invoice"></i> Falta factura</span>';
                           if ($reservaexitosa->qrs_generados > 0)
                             $alertas[] = '<span class="rv-tag rv-tag-ok"><i class="fas fa-check"></i> QR ' . $reservaexitosa->qrs_generados . '/' . $reservaexitosa->boletas_esperadas . '</span>';
                           elseif ($reservaexitosa->qr_anteriores > 0)
@@ -246,29 +246,46 @@
               $hayCards = false;
 
               foreach ($capacidadesDisponibles as $capacidad) {
-                if ($capacidad <= $limiteReal) {
-                  $hayCards = true;
-                  $cantidadMesas = $mesasPorCapacidad[$capacidad];
-                  $soldOut = $cantidadMesas <= 0;
-                  $claseSoldOut = $soldOut ? ' rv-tile-soldout' : '';
-                  $cursor = $soldOut ? 'not-allowed' : 'pointer';
-                  $etiquetaMesas = $soldOut
-                    ? "<span class='rv-tile-status rv-tile-badge rv-badge-soldout'><i class='fa-solid fa-ban'></i> Agotado</span>"
-                    : "<span class='rv-tile-status rv-tile-badge rv-badge-mesas'><i class='fa-solid fa-chair'></i> $cantidadMesas mesa" . ($cantidadMesas != 1 ? 's' : '') . " disponible" . ($cantidadMesas != 1 ? 's' : '') . "</span>";
-                  echo "
-                    <div class='card card-capacidad rv-tile$claseSoldOut'
-                        data-capacidad='$capacidad'
-                        data-cantidad-mesas='$cantidadMesas'
-                        data-soldout='" . ($soldOut ? '1' : '0') . "'
-                        style='cursor: $cursor;'>
-                      <div class='card-body rv-tile-body'>
-                        <span class='rv-tile-num'>$capacidad</span>
-                        <span class='rv-tile-label'>persona" . ($capacidad != 1 ? 's' : '') . "</span>
-                        $etiquetaMesas
-                      </div>
-                    </div>
-                  ";
+                $hayCards = true;
+                $cantidadMesas = $mesasPorCapacidad[$capacidad];
+                // Agotado si no quedan mesas físicas de este tamaño O si excede el cupo
+                // restante del evento/sesión. En ambos casos la tarjeta se muestra igual,
+                // nunca se omite (antes desaparecía cuando $capacidad > $limiteReal).
+                $excedeCupo = $capacidad > $limiteReal;
+                $soldOut = $cantidadMesas <= 0 || $excedeCupo;
+                $claseSoldOut = $soldOut ? ' rv-tile-soldout' : '';
+                $cursor = $soldOut ? 'not-allowed' : 'pointer';
+                $etiquetaMesas = $soldOut
+                  ? "<span class='rv-tile-status rv-tile-badge rv-badge-soldout'><i class='fa-solid fa-ban'></i> Agotado</span>"
+                  : "<span class='rv-tile-status rv-tile-badge rv-badge-mesas'><i class='fa-solid fa-chair'></i> $cantidadMesas mesa" . ($cantidadMesas != 1 ? 's' : '') . " disponible" . ($cantidadMesas != 1 ? 's' : '') . "</span>";
+
+                // Semáforo de disponibilidad: rojo agotado, amarillo pocas mesas (1-2), verde buena disponibilidad (3+)
+                if ($soldOut) {
+                  $semaforoColor = 'red';
+                  $semaforoTitulo = 'Agotado';
+                } elseif ($cantidadMesas <= 2) {
+                  $semaforoColor = 'yellow';
+                  $semaforoTitulo = 'Pocas mesas disponibles';
+                } else {
+                  $semaforoColor = 'green';
+                  $semaforoTitulo = 'Buena disponibilidad';
                 }
+                $semaforo = "<span class='rv-semaforo rv-semaforo-$semaforoColor' data-bs-toggle='tooltip' title='$semaforoTitulo'></span>";
+
+                echo "
+                  <div class='card card-capacidad rv-tile$claseSoldOut'
+                      data-capacidad='$capacidad'
+                      data-cantidad-mesas='$cantidadMesas'
+                      data-soldout='" . ($soldOut ? '1' : '0') . "'
+                      style='cursor: $cursor;'>
+                    $semaforo
+                    <div class='card-body rv-tile-body'>
+                      <span class='rv-tile-num'>$capacidad</span>
+                      <span class='rv-tile-label'>persona" . ($capacidad != 1 ? 's' : '') . "</span>
+                      $etiquetaMesas
+                    </div>
+                  </div>
+                ";
               }
               if (!$hayCards) {
                 echo "<div class='rv-no-avail'>
@@ -572,6 +589,8 @@
             const cantidadOriginal = parseInt(card.dataset.cantidadMesas, 10) || 0;
             const bloqueada = eraSoldOutOriginal || noDisponibles.includes(capacidad);
 
+            const semaforoEl = card.querySelector('.rv-semaforo');
+
             if (bloqueada) {
               card.classList.add('rv-tile-soldout');
               card.style.cursor = 'not-allowed';
@@ -579,6 +598,10 @@
                 statusEl.innerHTML = '<i class="fa-solid fa-ban"></i> Agotado';
                 statusEl.classList.remove('rv-badge-mesas');
                 statusEl.classList.add('rv-badge-soldout');
+              }
+              if (semaforoEl) {
+                semaforoEl.className = 'rv-semaforo rv-semaforo-red';
+                semaforoEl.title = 'Agotado';
               }
               if (card.classList.contains('selected')) {
                 card.classList.remove('selected');
@@ -594,6 +617,15 @@
                 statusEl.innerHTML = '<i class="fa-solid fa-chair"></i> ' + cantidadOriginal + ' mesa' + (cantidadOriginal !== 1 ? 's' : '') + ' disponible' + (cantidadOriginal !== 1 ? 's' : '');
                 statusEl.classList.remove('rv-badge-soldout');
                 statusEl.classList.add('rv-badge-mesas');
+              }
+              if (semaforoEl) {
+                if (cantidadOriginal <= 2) {
+                  semaforoEl.className = 'rv-semaforo rv-semaforo-yellow';
+                  semaforoEl.title = 'Pocas mesas disponibles';
+                } else {
+                  semaforoEl.className = 'rv-semaforo rv-semaforo-green';
+                  semaforoEl.title = 'Buena disponibilidad';
+                }
               }
             }
           });
@@ -813,6 +845,7 @@
   }
 
   .rv-tile.card-capacidad {
+    position: relative !important;
     width: 110px !important;
     height: 110px !important;
     background: rgba(255, 255, 255, 0.06) !important;
@@ -892,9 +925,9 @@
   }
 
   .rv-badge-mesas {
-    background: rgba(255, 193, 7, 0.12);
-    color: #ffc107;
-    border: 1px solid rgba(255, 193, 7, 0.32);
+    background: rgba(76, 175, 80, 0.12);
+    color: #66bb6a;
+    border: 1px solid rgba(76, 175, 80, 0.32);
     /* El texto "x mesas disponibles" es largo: permitir 2 líneas dentro de la tarjeta */
     display: inline-block;
     white-space: normal;
@@ -919,6 +952,45 @@
     opacity: 0.55;
     pointer-events: none;
     background: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  /* ── Semáforo de disponibilidad (esquina superior derecha de cada tarjeta) ── */
+  .rv-semaforo {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    z-index: 2;
+    border: 1.5px solid rgba(0, 0, 0, 0.25);
+  }
+
+  .rv-semaforo-green {
+    background: #2ecc71;
+    box-shadow: 0 0 7px rgba(46, 204, 113, 0.85);
+    animation: rv-semaforo-pulse-green 2s ease-in-out infinite;
+  }
+
+  .rv-semaforo-yellow {
+    background: #ffc107;
+    box-shadow: 0 0 7px rgba(255, 193, 7, 0.85);
+    animation: rv-semaforo-pulse-yellow 1.4s ease-in-out infinite;
+  }
+
+  .rv-semaforo-red {
+    background: #dc3545;
+    box-shadow: 0 0 7px rgba(220, 53, 69, 0.85);
+  }
+
+  @keyframes rv-semaforo-pulse-green {
+    0%, 100% { box-shadow: 0 0 7px rgba(46, 204, 113, 0.85); }
+    50% { box-shadow: 0 0 3px rgba(46, 204, 113, 0.4); }
+  }
+
+  @keyframes rv-semaforo-pulse-yellow {
+    0%, 100% { box-shadow: 0 0 7px rgba(255, 193, 7, 0.85); }
+    50% { box-shadow: 0 0 3px rgba(255, 193, 7, 0.4); }
   }
 
   .rv-tile.card-capacidad.rv-tile-soldout .rv-tile-num,
@@ -1239,25 +1311,24 @@
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #ffc107;
+    border: 1px solid #e6ac00;
     border-radius: 20px;
     padding: 6px 16px 6px 12px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: border-color 0.4s ease;
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.25);
+    transition: border-color 0.4s ease, background 0.4s ease;
   }
 
   .rv-timer-icon {
     font-size: 0.78rem;
-    color: #ffc107;
+    color: #111;
     flex-shrink: 0;
   }
 
   .rv-timer-display {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #ffffff;
+    color: #111;
     letter-spacing: 2px;
     line-height: 1;
   }
@@ -1275,18 +1346,19 @@
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 1.8px;
-    color: white;
+    color: #111;
     font-weight: 600;
   }
 
-  /* Urgency state (applied via JS) */
+  /* Urgency state (applied via JS): pasa de amarillo a rojo cuando quedan < 3 min */
   .rv-timer.urgent {
-    border-color: rgba(220, 53, 69, 0.55);
-    background: rgba(220, 53, 69, 0.1);
+    background: #dc3545;
+    border-color: #b02a37;
   }
 
   .rv-timer.urgent .rv-timer-icon,
-  .rv-timer.urgent .rv-timer-display {
-    color: #ef9a9a;
+  .rv-timer.urgent .rv-timer-display,
+  .rv-timer.urgent .rv-timer-label {
+    color: #ffffff;
   }
 </style>

@@ -1,3 +1,16 @@
+<style>
+    .btn-pastel-green {
+        background-color: #b3e6c0;
+        border-color: #b3e6c0;
+        color: #1b4332;
+    }
+    .btn-pastel-green:hover,
+    .btn-pastel-green:focus {
+        background-color: #9ed9ae;
+        border-color: #9ed9ae;
+        color: #1b4332;
+    }
+</style>
 <div class="container-home mt-auto mb-5">
     <div class="col-12 fondo-transparente text-center text-white p-4">
 
@@ -48,7 +61,7 @@
 
                 <?php if ($this->reservaAbierta) { ?>
                     <!-- Solo renderizar el botón si la reserva está abierta -->
-                    <a id="btn-login" href="/page/login" class="btn btn-warning rounded-pill px-4 py-2 fs-5 fw-bold btn-con-espacio">
+                    <a id="btn-login" href="/page/login" class="btn btn-pastel-green rounded-pill px-4 py-2 fs-5 fw-bold btn-con-espacio">
                         <span>Adquiera sus boletas aquí</span>
                     </a>
                     <img id="img-cursor" src="/images/cf/cursor.png" alt="Cursor" class="img-cursor">

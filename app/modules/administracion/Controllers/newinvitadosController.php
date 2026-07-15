@@ -829,6 +829,16 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 
 		$nombre = trim(($data['invitadoReserva_nombre_invitado'] ?? '') . ' ' . ($data['invitadoReserva_apellido_invitado'] ?? ''));
 
+		// El tipo de invitado (Socio/Cosocio/Invitado) determina el valor y el formato de
+		// la boleta, así que si ya tenía una generada/enviada se anula: el socio deberá
+		// volver a solicitarla desde guests/index con el nuevo tipo ya aplicado.
+		$boletaAnulada = $this->anularBoletaPorCambioTipo($id, $anterior, $nuevo);
+
+		$observaciones = "Invitado {$nombre} cambió de {$anterior} a {$nuevo}";
+		if ($boletaAnulada) {
+			$observaciones .= ' — Boleta cancelada por cambio de tipo de invitado';
+		}
+
 		$auditoriaModel = new Administracion_Model_DbTable_Reservasauditoria();
 		$auditoriaModel->insert(array(
 			'reserva_id' => $content->reserva_id_reserva,
@@ -843,17 +853,50 @@ class Administracion_newinvitadosController extends Administracion_mainControlle
 			'mesa_id_nuevo' => '',
 			'invitados_antes' => '',
 			'invitados_despues' => '',
-			'datos_json' => json_encode(array('id_invitado' => $id, 'invitado_nombre' => $nombre), JSON_UNESCAPED_UNICODE),
+			'datos_json' => json_encode(array('id_invitado' => $id, 'invitado_nombre' => $nombre, 'boleta_anulada' => $boletaAnulada), JSON_UNESCAPED_UNICODE),
 			'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
 			'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
 			'session_data' => '',
 			'url_completa' => $_SERVER['REQUEST_URI'] ?? '',
 			'parametros_get' => '',
 			'parametros_post' => '',
-			'observaciones' => "Invitado {$nombre} cambió de {$anterior} a {$nuevo}",
+			'observaciones' => $observaciones,
 			'fecha_creacion' => date('Y-m-d H:i:s'),
 			'usuario_sistema' => Session::getInstance()->get('usuarioData')['id'] ?? Session::getInstance()->get('kt_login_user') ?? 'Sistema',
 		));
+	}
+
+	/**
+	 * Anula (boleta_estado = 3) cualquier boleta activa (generada o validada, estado 1 o 2)
+	 * del invitado. El tipo de invitado determina el valor/formato de la boleta, así que un
+	 * cambio de tipo la deja inválida; el socio podrá volver a solicitarla desde guests/index,
+	 * que ya excluye las boletas anuladas al calcular "boleta_enviada".
+	 *
+	 * @return bool true si se anuló al menos una boleta
+	 */
+	private function anularBoletaPorCambioTipo($idInvitado, $anterior, $nuevo)
+	{
+		$boletasModel = new Administracion_Model_DbTable_Boletasinfo();
+		$boletasActivas = $boletasModel->getList("boleta_asignacion = '{$idInvitado}' AND boleta_estado IN (1,2)", "");
+		if (!$boletasActivas || !is_countable($boletasActivas) || count($boletasActivas) === 0) {
+			return false;
+		}
+
+		$motivo = "Tu tipo de invitado cambió de {$anterior} a {$nuevo}, por lo que la boleta anterior fue anulada. Puedes volver a solicitarla.";
+		foreach ($boletasActivas as $boleta) {
+			$boletasModel->editField($boleta->boleta_id, 'boleta_estado', 3);
+			$boletasModel->editField($boleta->boleta_id, 'boleta_observaciones', $motivo);
+		}
+
+		$logModel = new Administracion_Model_DbTable_Log();
+		$logModel->insert([
+			'log_usuario' => Session::getInstance()->get('usuarioData')['id'] ?? Session::getInstance()->get('kt_login_user') ?? 'Sistema',
+			'log_tipo' => 'BOLETA ANULADA - CAMBIO TIPO INVITADO',
+			'log_fecha' => date('Y-m-d H:i:s'),
+			'log_log' => "Invitado ID {$idInvitado}: boleta(s) anulada(s) por cambio de tipo ({$anterior} -> {$nuevo}). Total: " . count($boletasActivas),
+		]);
+
+		return true;
 	}
 
 	/**

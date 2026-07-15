@@ -3,14 +3,23 @@ session_start();
 define('DS', DIRECTORY_SEPARATOR);
 define('ROOT', realpath(dirname(__FILE__)) . DS);
 define('FRAMEWORK_PATH', ROOT . '../framework' . DS);
-define('APP_PATH', ROOT . '../app' . DS);
+// realpath() aquí colapsa el ".." resultante (ROOT ya es app/, así que ROOT.."../app"
+// quedaría literal como ".../app/../app/"). TCPDF rechaza en silencio (sin excepción,
+// sin log) cualquier ruta de imagen que contenga "..", por protección contra path
+// traversal, así que un PUBLIC_PATH/IMAGE_PATH con ".." sin resolver hacía que el QR
+// (y el fondo de la boleta) nunca se embebieran en el PDF aunque el archivo sí existiera.
+define('APP_PATH', realpath(ROOT . '../app') . DS);
 define('VIEWS_PATH', APP_PATH . 'View' . DS);
 define('LAYOUTS_PATH', APP_PATH . 'layout' . DS);
-define('IMAGE_PATH', APP_PATH . "../public_html/images/");
-define('FILE_PATH', APP_PATH . "../public_html/files/");
-define('PUBLIC_PATH', APP_PATH . "../public_html/");
-define('PDFS_PATH', APP_PATH . "../public_html/pdfs/");
-define('PDFS_PATH_NEWS', APP_PATH . "../public_html/pdfs_news/");
+// public_html es hermano de app/, no descendiente: se resuelve una sola vez aquí (limpio,
+// sin "..") y las rutas de abajo se arman por concatenación simple sobre esa base, para
+// que ninguna termine con "../" sin resolver.
+define('PUBLIC_HTML_PATH', realpath(ROOT . '../public_html') . DS);
+define('IMAGE_PATH', PUBLIC_HTML_PATH . "images" . DS);
+define('FILE_PATH', PUBLIC_HTML_PATH . "files" . DS);
+define('PUBLIC_PATH', PUBLIC_HTML_PATH);
+define('PDFS_PATH', PUBLIC_HTML_PATH . "pdfs" . DS);
+define('PDFS_PATH_NEWS', PUBLIC_HTML_PATH . "pdfs_news" . DS);
 
 
 // $_SESSION['test'] = 123;

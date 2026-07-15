@@ -291,8 +291,8 @@
         <div class="av-note">
           <i class="fas fa-info-circle me-2"></i>
           <span>
-            Le agradecemos diligenciar la información requerida para el registro de sus invitados, la factura electrónica y el menú gastronómico.
-            En caso de no haber finalizado el proceso, podrá completarlo iniciando sesión nuevamente en la plataforma.
+            Le agradecemos diligenciar la información requerida para el <strong>registro de sus invitados.</strong>
+            Si no puede ingresar ahora, el link será enviado también a su correo electrónico.
           </span>
         </div>
 
@@ -404,21 +404,20 @@
       display: inline-flex;
       align-items: center;
       gap: 0.55rem;
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #ffc107;
+      border: 1px solid #e6ac00;
       border-radius: 20px;
       padding: 6px 16px 6px 12px;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      transition: border-color 0.4s ease;
+      box-shadow: 0 2px 10px rgba(255, 193, 7, 0.25);
+      transition: border-color 0.4s ease, background 0.4s ease;
     }
 
-    .rv-timer-icon { font-size: 0.78rem; color: #ffc107; flex-shrink: 0; }
+    .rv-timer-icon { font-size: 0.78rem; color: #111; flex-shrink: 0; }
 
     .rv-timer-display {
       font-size: 1.05rem;
       font-weight: 700;
-      color: #ffffff;
+      color: #111;
       letter-spacing: 2px;
       line-height: 1;
     }
@@ -429,17 +428,19 @@
       font-size: 0.9rem;
       text-transform: uppercase;
       letter-spacing: 1.8px;
-      color: white;
+      color: #111;
       font-weight: 600;
     }
 
+    /* Urgency state (applied via JS): pasa de amarillo a rojo cuando quedan < 3 min */
     .rv-timer.urgent {
-      border-color: rgba(220, 53, 69, 0.55);
-      background: rgba(220, 53, 69, 0.1);
+      background: #dc3545;
+      border-color: #b02a37;
     }
 
     .rv-timer.urgent .rv-timer-icon,
-    .rv-timer.urgent .rv-timer-display { color: #ef9a9a; }
+    .rv-timer.urgent .rv-timer-display,
+    .rv-timer.urgent .rv-timer-label { color: #ffffff; }
 
     @keyframes rv-blink { 50% { opacity: 0; } }
 

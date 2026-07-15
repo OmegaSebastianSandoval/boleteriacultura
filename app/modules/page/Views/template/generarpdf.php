@@ -71,7 +71,7 @@ $invitado = $this->invitado;
         <tr>
           <!-- Celda con el identificador -->
           <td width="100%">
-          <img src="<?= "/images_sales/qrs/".$this->boleta->boleta_uid.".png" ?>" alt="qr" width="250" height="250" />
+          <img src="<?= PUBLIC_PATH . "images_sales/qrs/" . $this->boleta->boleta_uid . ".png" ?>" alt="qr" width="250" height="250" />
           </td>
         </tr>
       </table>

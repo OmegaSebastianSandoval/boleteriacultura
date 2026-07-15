@@ -106,7 +106,7 @@
           <span class="hdr-exit-text">Salir</span>
         </a>
       <?php endif; ?>
-      <button class="hdr-btn-menu" id="menuToggle" aria-label="Menú">
+      <button class="hdr-btn-menu d-none" id="menuToggle" aria-label="Menú">
         <i class="fas fa-bars" id="menuIcon"></i>
       </button>
     </div>
@@ -137,7 +137,7 @@
         </a>
       </li>
     <?php endif; ?>
-    <li>
+    <li class="d-none">
       <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#contactoModal">
         <i class="fa-solid fa-envelope me-2"></i>Contacto
       </a>

@@ -214,6 +214,7 @@ class Administracion_reservasController extends Administracion_mainController
           'documento' => $registro->documento_socio,
           'estado_anterior' => $registro->estado_anterior,
           'estado_nuevo' => $registro->estado_nuevo,
+          'boleta_anulada' => (bool) (is_array($detalle) && !empty($detalle['boleta_anulada'])),
         );
       }
     }

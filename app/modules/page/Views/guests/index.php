@@ -208,17 +208,17 @@
   .gl-save-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     box-sizing: border-box; height: 34px;
-    background: #ffc107; color: #111 !important;
+    background: #4CAF50; color: #fff !important;
     border: none; border-radius: 20px;
     font-size: 0.78rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
     padding: 0 22px; cursor: pointer;
     transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-    box-shadow: 0 3px 12px rgba(255, 193, 7, 0.3);
+    box-shadow: 0 3px 12px rgba(76, 175, 80, 0.35);
     margin-left: auto;
   }
   .gl-save-btn:hover:not(:disabled) {
-    background: #e6ac00; transform: translateY(-1px);
-    box-shadow: 0 5px 18px rgba(255, 193, 7, 0.45);
+    background: #43a047; transform: translateY(-1px);
+    box-shadow: 0 5px 18px rgba(76, 175, 80, 0.5);
   }
   .gl-save-btn:disabled {
     background: rgba(255,255,255,0.07) !important;
@@ -316,10 +316,15 @@
   .inv-counter-text strong { color: #fff; }
   .inv-pend-txt { color: #ffc107; }
   .inv-counter-divider { color: rgba(255,255,255,0.1); flex-shrink: 0; }
-  .inv-counter-ambiente {
-    font-size: 0.9rem; font-weight: 700; color: white;
-    white-space: nowrap; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; max-width: 350px;
+  .inv-counter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.85rem; font-weight: 700; color: #ffc107;
+    white-space: nowrap; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; max-width: 260px;
+    background: rgba(255,193,7,0.12); border: 1.5px solid rgba(255,193,7,0.5);
+    border-radius: 20px; padding: 5px 14px;
   }
+  .inv-counter-chip i { font-size: 0.78rem; opacity: 0.85; }
+  .inv-counter-chip .inv-counter-chip-label { font-weight: 500; opacity: 0.75; }
 
   .inv-panel-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -540,7 +545,7 @@
     font-size: 0.78rem; font-weight: 600; padding: 0 14px;
     cursor: pointer; transition: background 0.15s, border-color 0.15s;
   }
-  .inv-add-btn:hover:not(:disabled) { background: rgba(255,193,7,0.18); border-color: rgba(255,193,7,0.6); }
+  .inv-add-btn:hover:not(:disabled) { background: rgba(76,175,80,0.18); border-color: rgba(76,175,80,0.6); color: #66bb6a; }
   .inv-add-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
   .inv-remove-btn {
@@ -699,7 +704,7 @@
     /* Indicador de progreso: apilar en dos líneas */
     .inv-counter { flex-wrap: wrap; gap: 6px 10px; }
     .inv-counter-label   { order: 1; }
-    .inv-counter-ambiente { order: 2; max-width: calc(100% - 80px); font-size: 0.82rem; }
+    .inv-counter-chip { order: 2; max-width: calc(50% - 10px); font-size: 0.78rem; }
     .inv-counter-divider { display: none; }
     .inv-counter-bar  { order: 3; flex: 1 0 100%; }
     .inv-counter-text { order: 4; width: 100%; }
@@ -947,7 +952,8 @@
 
         <!-- Indicador de progreso -->
         <div class="inv-counter">
-          <span class="inv-counter-ambiente"><?= htmlspecialchars($this->nombreAmbiente ?: '—') ?></span>
+          <span class="inv-counter-chip"><i class="fa-solid fa-receipt"></i> <span class="inv-counter-chip-label">Reserva #</span><?= (int) $this->reserva->id ?></span>
+          <span class="inv-counter-chip"><i class="fa-solid fa-door-open"></i> <span class="inv-counter-chip-label">Ambiente:</span> <?= htmlspecialchars($this->nombreAmbiente ?: '—') ?></span>
           <span class="inv-counter-divider">|</span>
           <div class="inv-counter-bar">
             <div class="inv-counter-fill" style="width:<?= $pct ?>%"></div>
@@ -978,7 +984,7 @@
                 <?php if ($totalReg > 0): ?>
                   <div class="alert alert-warning py-2 px-3 mx-2 mt-2 mb-0" style="font-size:0.82rem;">
                     <i class="fa-solid fa-paper-plane me-1"></i>
-                    Puede asignar el menú y enviar la boleta de cada invitado registrado de forma individual, sin necesidad de esperar a completar la información de todos los invitados de la reserva. La boleta de los invitados, socios o cosocios será enviada directamente al responsable de la reserva.
+                    Puede asignar el menú y la boleta de cada invitado registrado de forma individual, sin necesidad de esperar a completar la información de todos los invitados de la reserva. La boleta de los invitados, socios o cosocios será enviada directamente al responsable de la reserva.
                   </div>
                 <?php endif; ?>
                 <div class="inv-table-wrap flex-grow-1">

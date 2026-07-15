@@ -86,9 +86,11 @@ class Administracion_reservasauditoriaController extends Administracion_mainCont
 
 
 
-		$list = $this->mainModel->getList($filters, $order);
-
-	
+		// La tabla reservas_auditoria crece mucho (se le escribe en casi cada acciÃ³n del
+		// sitio, con volcados print_r completos por fila): traer todas las filas con
+		// getList() solo para contarlas agotaba la memoria de PHP. getListCount() hace
+		// SELECT COUNT(*) en vez de traer los registros completos.
+		$totalRegistros = (int) ($this->mainModel->getListCount($filters)[0]->total ?? 0);
 
 		$amount = $this->pages;
 		$page = $this->_getSanitizedParam("page");
@@ -103,9 +105,9 @@ class Administracion_reservasauditoriaController extends Administracion_mainCont
 			Session::getInstance()->set($this->namepageactual, $page);
 			$start = ($page - 1) * $amount;
 		}
-		$this->_view->register_number = count($list);
+		$this->_view->register_number = $totalRegistros;
 		$this->_view->pages = $this->pages;
-		$this->_view->totalpages = ceil(count($list) / $amount);
+		$this->_view->totalpages = ceil($totalRegistros / $amount);
 		$this->_view->page = $page;
 		$this->_view->lists = $this->mainModel->getListPages($filters, $order, $start, $amount);
 		$this->_view->csrf_section = $this->_csrf_section;
@@ -320,7 +322,7 @@ class Administracion_reservasauditoriaController extends Administracion_mainCont
 	}
 
 	/**
-	 * Cambiar cantidad de elementos por p¨¢gina
+	 * Cambiar cantidad de elementos por pï¿½ï¿½gina
 	 */
 	public function changepageAction()
 	{
