@@ -2329,6 +2329,7 @@ class Page_eventoController extends Page_mainController
         $dataLog['log_log'] = 'Error al procesar el pago: ' . $mensaje;
         $dataLog['log_tipo'] = 'GENERAR PAGO - ERROR';
         $logModel->insert($dataLog);
+        $this->revertirReservaPorFalloPago($id, '7', $mensaje);
         Session::getInstance()->set('error_pago', 'Error al procesar el pago: ' . $mensaje);
         header('Location: /page/evento/resumen?id=' . enc_id($id) . '&error=error_pago');
       }
@@ -2336,8 +2337,35 @@ class Page_eventoController extends Page_mainController
       $dataLog['log_log'] = 'Excepción: ' . $e->getMessage();
       $dataLog['log_tipo'] = 'GENERAR PAGO - EXCEPCION';
       $logModel->insert($dataLog);
-      var_dump($e->getMessage());
+      $this->revertirReservaPorFalloPago($id, '7', $e->getMessage());
+      Session::getInstance()->set('error_pago', 'Error al procesar el pago: ' . $e->getMessage());
+      header('Location: /page/evento/resumen?id=' . enc_id($id) . '&error=error_pago');
     }
+  }
+
+  /**
+   * Revierte una reserva a estado 1 (creada/en proceso) cuando falla la creación de la
+   * sesión de pago en PlaceToPay (p.ej. el monto supera el límite configurado en la
+   * pasarela). generarpagoAction() deja la reserva en estado 7 (pendiente de pago) ANTES de
+   * llamar a PlaceToPay; si esa llamada falla, quedarse en 7 hace que la mesa nunca se
+   * libere: tanto reservarAction() (botón "Regresar") como limpiarreservasAction() (cron
+   * de 15 min) y logoutAction() solo liberan la mesa cuando reserva_estado = 1.
+   *
+   * @param  int    $id       id de la reserva
+   * @param  string $estadoDesde estado numérico del que se revierte (solo para el log)
+   * @param  string $motivo   mensaje de error de PlaceToPay o la excepción
+   * @return void
+   */
+  private function revertirReservaPorFalloPago($id, $estadoDesde, $motivo)
+  {
+    $reservasModel = new Administracion_Model_DbTable_Reservas();
+    $reservasModel->editField($id, 'reserva_estado', 1);
+
+    $this->logAuditoria('GENERAR_PAGO_FALLIDO_REVERTIDO', $id, [
+      'estado_anterior' => $estadoDesde,
+      'estado_nuevo' => '1',
+      'observaciones' => 'Fallo al crear sesión de pago en PlaceToPay, se revierte a estado 1 para permitir liberar la mesa: ' . $motivo
+    ]);
   }
   public function finalAction()
   {

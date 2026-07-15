@@ -610,9 +610,38 @@ class Page_guestsController extends Page_mainController
       return null; // No disponible
     }
     $textoQR = $documento;
-    $rutaQR = "images_sales/qrs_news/{$uid}.png";
+    // Ruta absoluta: una ruta relativa depende del cwd del proceso PHP, que puede variar
+    // según cómo el hosting invoque el script (rewrite, FPM, etc.), causando que el PNG
+    // se escriba en un lugar distinto de donde el PDF/email luego lo busca.
+    $rutaQR = PUBLIC_PATH . "images_sales/qrs_news/{$uid}.png";
     QRcode::png($textoQR, $rutaQR, "Q", 5, 3);
+    $this->normalizarPngQR($rutaQR);
     return $rutaQR;
+  }
+
+  /**
+   * phpqrcode genera PNGs de 1 bit por píxel (formato mínimo blanco/negro). El parser
+   * nativo de PNG de TCPDF no maneja bien esa profundidad de bit y el QR queda en blanco
+   * al embeberlo en el PDF, aunque el archivo exista y sea válido. Se recarga con GD y se
+   * regraba como PNG truecolor estándar (mismo contenido visual, profundidad de 8 bits)
+   * para que TCPDF lo embeba correctamente.
+   */
+  private function normalizarPngQR($ruta)
+  {
+    if (!file_exists($ruta) || !function_exists('imagecreatefrompng')) {
+      return;
+    }
+    $img = @imagecreatefrompng($ruta);
+    if (!$img) {
+      return;
+    }
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $normalizado = imagecreatetruecolor($w, $h);
+    imagecopy($normalizado, $img, 0, 0, 0, 0, $w, $h);
+    imagedestroy($img);
+    imagepng($normalizado, $ruta);
+    imagedestroy($normalizado);
   }
   public function generarQROLD($uid, $token)
   {

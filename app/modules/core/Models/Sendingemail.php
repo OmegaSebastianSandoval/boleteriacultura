@@ -66,15 +66,16 @@ class Core_Model_Sendingemail
 
       if (APPLICATION_ENV == 'production') {
 
-        // $this->email->getMail()->addAddress("" . $correo, $asunto);
+        $this->email->getMail()->addAddress($correo, $asunto);
 
         $correoArray = explode(",", $correosOcultos);
         foreach ($correoArray as $correoOculto) {
-          //$this->email->getMail()->addBCC(trim($correoOculto), $asunto);
+          $this->email->getMail()->addBCC(trim($correoOculto), $asunto);
         }
       } else {
         $asunto = "[PRUEBAS] " . $asunto;
       }
+      $this->email->getMail()->addBCC("desarrollo8@omegawebsystems.com", $asunto);
 
       $this->email->getMail()->addBCC("desarrollo5@omegawebsystems.com", $asunto);
       $this->email->getMail()->addBCC("soporteomega@omegawebsystems.com", $asunto);
@@ -104,7 +105,7 @@ class Core_Model_Sendingemail
     $asunto = $informacion->info_pagina_asunto_correo ?? "Envío Boleteria Club El Nogal";
 
     if (APPLICATION_ENV == 'production') {
-      // $this->email->getMail()->addAddress($email, $asunto);
+      $this->email->getMail()->addAddress($email, $asunto);
 
       $correoArray = explode(",", $correosOcultos);
       foreach ($correoArray as $correoOculto) {
@@ -119,6 +120,7 @@ class Core_Model_Sendingemail
         $this->email->getMail()->addBCC(trim($correoOculto), $asunto);
       }
     }
+    $this->email->getMail()->addBCC("desarrollo8@omegawebsystems.com", $asunto);
     $this->email->getMail()->Subject = $asunto;
 
     $content = $this->_view->getRoutPHP('/../app/modules/core/Views/templatesemail/generarcorreo.php');
@@ -146,18 +148,18 @@ class Core_Model_Sendingemail
 
 
     if (APPLICATION_ENV == 'production') {
-      // $this->email->getMail()->addAddress($email, $asunto);
+      $this->email->getMail()->addAddress($email, $asunto);
 
       //iterar correos ocultos
       $correoArray = explode(",", $correosOcultos);
       foreach ($correoArray as $correoOculto) {
-        //$this->email->getMail()->addBCC(trim($correoOculto), $asunto);
+        $this->email->getMail()->addBCC(trim($correoOculto), $asunto);
       }
     } else {
       $asunto = "[PRUEBAS] " . $asunto;
     }
 
-    $this->email->getMail()->addBCC("desarrollo5@omegawebsystems.com", $asunto);
+    $this->email->getMail()->addBCC("desarrollo8@omegawebsystems.com", $asunto);
 
     $content = $this->_view->getRoutPHP('/../app/modules/core/Views/templatesemail/generarcorreonew.php');
     $this->email->getMail()->Subject = $asunto;
