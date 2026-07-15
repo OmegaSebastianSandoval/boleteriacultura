@@ -2540,11 +2540,16 @@ class Page_eventoController extends Page_mainController
           return;
         }
 
-        // Provisional funciona igual que ocupada: bloquea la selección igual que mesa_estado == 1.
-        $mesaProvisional = $mesa->mesa_provision !== null && $mesa->mesa_provision !== '';
-        if (($mesa->mesa_estado == 1 || $mesaProvisional) && !in_array($id, $mesasActualesPreservadas)) {
-          $reservaConEstaMesa = $reservasModel->getList("id = '{$reservaSession->id}' AND FIND_IN_SET('$id', reserva_mesa_id)", "");
-          if (!$reservaConEstaMesa || count($reservaConEstaMesa) == 0) {
+        $esMia = in_array($id, $mesasActualesPreservadas);
+
+        if (!$esMia) {
+          // Bloqueo atómico (UPDATE condicional, igual que en confirmarmesaAction): solo
+          // tiene éxito si la mesa sigue libre en este preciso instante. Antes se usaba
+          // editField() (UPDATE sin condición), que dejaba una ventana real para que dos
+          // sesiones que leyeron la mesa como libre casi al mismo tiempo terminaran
+          // quedándose ambas con ella.
+          $mesasModel->updateEstadoAtomico('1', $id);
+          if (mysqli_affected_rows($mesasModel->getConnection()) === 0) {
             echo json_encode(['success' => false, 'message' => 'Mesa ocupada por otro usuario']);
             return;
           }
@@ -2552,15 +2557,11 @@ class Page_eventoController extends Page_mainController
 
         // Deseleccionar la mesa anterior del mismo paso, si existe
         if (!empty($mesasActualesPreservadas[$stepIndex]) && $mesasActualesPreservadas[$stepIndex] !== $id) {
-          $mesasModel->editField($mesasActualesPreservadas[$stepIndex], 'mesa_estado', 0);
+          $mesasModel->updateEstado('0', $mesasActualesPreservadas[$stepIndex]);
         }
 
         // Actualizar la lista de mesas para el paso correspondiente
         $mesasActualesPreservadas[$stepIndex] = $id;
-
-        // Actualizar el estado de la mesa en la base de datos y registrar cuándo se bloqueó
-        $mesasModel->editField($id, 'mesa_estado', 1);
-        $mesasModel->editField($id, 'mesa_fecha_bloqueo', date('Y-m-d H:i:s'));
 
         // Crear la cadena reserva_mesa_id preservando marcadores vacíos
         $newMesas = implode(',', $mesasActualesPreservadas);

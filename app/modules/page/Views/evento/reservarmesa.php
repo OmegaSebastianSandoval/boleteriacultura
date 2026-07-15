@@ -996,16 +996,22 @@
           .then(response => response.json())
           .then(data => {
             if (data.success && data.data.length > 0) {
+              // El backend ahora devuelve TODAS las mesas del ambiente (libres y ocupadas,
+              // sin importar quién las reservó) para que el mapa pueda pintarlas en rojo.
+              // El <select> solo debe ofrecer las que realmente se pueden elegir.
+              const mesasLibres = data.data.filter(function (mesa) {
+                return mesa.mesa_estado === null || mesa.mesa_estado === '' || mesa.mesa_estado === '0' || mesa.mesa_estado === 0;
+              });
               selectMesa.innerHTML = '<option value="">— Seleccione una mesa —</option>';
-              data.data.forEach(mesa => {
+              mesasLibres.forEach(mesa => {
                 const option = document.createElement('option');
                 option.value = mesa.mesa_id;
                 option.textContent = `${capitalizeFirstLetter(mesa.mesa_nombre)} (Cap: ${mesa.mesa_capacidad})`;
                 option.dataset.mesa = JSON.stringify(mesa);
                 selectMesa.appendChild(option);
               });
-              selectMesa.disabled = false;
-              infoMesa.textContent = `${data.count} mesas disponibles`;
+              selectMesa.disabled = mesasLibres.length === 0;
+              infoMesa.textContent = `${mesasLibres.length} mesas disponibles`;
 
               if (data.ambiente && Number(data.ambiente.ambiente_id) > 0) {
                 mostrarGrid(data.ambiente, data.data, data.todos_elementos, i);

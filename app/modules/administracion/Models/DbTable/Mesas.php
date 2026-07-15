@@ -235,23 +235,21 @@ class Administracion_Model_DbTable_Mesas extends Db_Table
 	 */
 	public function getMesasPorAmbiente($ambienteId, $capacidad)
 	{
-		$socio = $_SESSION['socio'];
-		$documento = $socio->SBE_CODI;
+		// Se devuelven TODAS las mesas activas del ambiente/capacidad (libres u ocupadas,
+		// sin importar qué socio las reservó), para que el mapa pueda pintar en rojo las
+		// mesas ya tomadas por cualquier otro socio y no solo las de la sesión actual.
 		$query = "
-			SELECT 
+			SELECT
 				m.*,
+				CASE WHEN (m.mesa_provision IS NOT NULL AND m.mesa_provision != '') THEN 1 ELSE m.mesa_estado END AS mesa_estado,
 				a.ambiente_nombre,
 				p.piso_nombre
 			FROM mesas m
 			INNER JOIN ambientes a ON m.mesa_ambiente = a.ambiente_id
 			INNER JOIN pisos p ON a.ambiente_piso = p.piso_id
-			LEFT JOIN reservas r ON
-    (FIND_IN_SET(m.mesa_id, r.reserva_mesa_id) OR (r.reserva_mesa_id IS NULL))
 			WHERE m.mesa_ambiente = '$ambienteId'
-			AND ((m.mesa_estado = '' OR m.mesa_estado = '0' OR m.mesa_estado IS NULL) AND (m.mesa_provision IS NULL OR m.mesa_provision = '') OR r.reserva_documento = '$documento')
 			AND m.mesa_capacidad = '$capacidad'
 			AND m.mesa_activa = '1'
-			GROUP BY m.mesa_id
 			ORDER BY m.mesa_nombre ASC
 		";
 
@@ -511,23 +509,21 @@ class Administracion_Model_DbTable_Mesas extends Db_Table
 	 */
 	public function getSillasPorAmbiente($ambienteId)
 	{
-		$socio = $_SESSION['socio'];
-		$documento = $socio->SBE_CODI;
+		// Mismo criterio que getMesasPorAmbiente(): se devuelven todas las sillas activas
+		// del ambiente (libres u ocupadas, de cualquier socio) para que el mapa las pinte
+		// en rojo correctamente sin depender del socio de la sesión actual.
 		$query = "
 			SELECT
 				m.*,
+				CASE WHEN (m.mesa_provision IS NOT NULL AND m.mesa_provision != '') THEN 1 ELSE m.mesa_estado END AS mesa_estado,
 				a.ambiente_nombre,
 				p.piso_nombre
 			FROM mesas m
 			INNER JOIN ambientes a ON m.mesa_ambiente = a.ambiente_id
 			INNER JOIN pisos p ON a.ambiente_piso = p.piso_id
-			LEFT JOIN reservas r ON
-    (FIND_IN_SET(m.mesa_id, r.reserva_mesa_id) OR (r.reserva_mesa_id IS NULL))
 			WHERE m.mesa_ambiente = '$ambienteId'
-			AND ((m.mesa_estado = '' OR m.mesa_estado = '0' OR m.mesa_estado IS NULL) AND (m.mesa_provision IS NULL OR m.mesa_provision = '') OR r.reserva_documento = '$documento')
 			AND m.mesa_tipo = 'silla'
 			AND m.mesa_activa = '1'
-			GROUP BY m.mesa_id
 			ORDER BY m.mesa_nombre ASC
 		";
 
